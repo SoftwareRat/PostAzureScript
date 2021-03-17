@@ -18,17 +18,16 @@
 
 ## This tool supports:
 
-OS:
-Server 2012 R2
-Server 2016
-Server 2019
+### OS:
+- Server 2012 R2
+- Server 2016
+- Server 2019
 
-CLOUD SKU: 
-NV6_Standard
-NV6_Promo
+### CLOUD SKU: 
+- NV6_Standard
+- NV6_Promo
 
 ## Show your support
-
+***
 Give a ⭐️ if this project helped you!
-
 ***
