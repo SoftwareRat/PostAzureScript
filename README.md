@@ -17,7 +17,6 @@
 * Github: [@SoftwareRat](https://github.com/SoftwareRat)
 
 ## This tool supports:
-
 ### OS:
 - Server 2012 R2
 - Server 2016
@@ -26,6 +25,11 @@
 ### CLOUD SKU: 
 - NV6_Standard
 - NV6_Promo
+
+### TO-DO LIST: 
+- Porting this script to Amazon Web Services or Google Cloud
+- Supporting other then Cloud SKU's based on NV6
+- This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
 
 ## Show your support
 ***
