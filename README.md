@@ -1,6 +1,6 @@
-<h1 align="center">Welcome to PostAzureScript 👋</h1>
+<h1 align="center">PostAzureScript - Use Azure for CloudGaming 🎮</h1>
 <p>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1-blue.svg?cacheSeconds=2592000" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.2-blue.svg?cacheSeconds=2592000" />
   <a href="https://twitter.com/realsoftwarerat" target="_blank">
     <img alt="Twitter: realsoftwarerat" src="https://img.shields.io/twitter/follow/realsoftwarerat.svg?style=social" />
   </a>
@@ -16,8 +16,22 @@
 * Twitter: [@realsoftwarerat](https://twitter.com/realsoftwarerat)
 * Github: [@SoftwareRat](https://github.com/SoftwareRat)
 
+## This tool supports:
+### OS:
+- Server 2012 R2
+- Server 2016
+- Server 2019
+
+### CLOUD SKU: 
+- NV6_Standard
+- NV6_Promo
+
+### TO-DO LIST: 
+- Porting this script to Amazon Web Services or Google Cloud
+- Supporting other then Cloud SKU's based on NV6
+- This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
+
 ## Show your support
-
+***
 Give a ⭐️ if this project helped you!
-
 ***
