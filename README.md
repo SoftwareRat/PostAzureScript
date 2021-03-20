@@ -18,7 +18,7 @@
 
 ## This tool supports:
 ### OS:
-- Server 2012 R2
+- Server 2012 R2 ([READ THIS BEFORE YOU WANT TO USE THIS OS FOR THIS SCRIPT](https://github.com/SoftwareRat/PostAzureScript/wiki/Server2012WAR))
 - Server 2016
 - Server 2019
 
