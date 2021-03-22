@@ -30,7 +30,7 @@
 - Porting this script to Amazon Web Services or Google Cloud
 - Supporting other then Cloud SKU's based on NV6
 - This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
-- Supporing Parsec
+- Supporting Parsec
 
 ## Show your support
 ***
