@@ -7,7 +7,8 @@
 </p>
 
 > Automate to configure Azure NV6 instances for CloudGaming
-## ⚠ DON'T USE IT YET, ITS STILL IN DEVELOPMENT
+
+<h2 align="center">⚠ DON'T USE IT YET, ITS STILL IN DEVELOPMENT</h2>
 
 ## Author
 
@@ -16,6 +17,9 @@
 * Website: https://softwarerat.vision
 * Twitter: [@realsoftwarerat](https://twitter.com/realsoftwarerat)
 * Github: [@SoftwareRat](https://github.com/SoftwareRat)
+
+# Execution
+[Follow this tutorial for executing this script](https://github.com/SoftwareRat/PostAzureScript/wiki/Execute-script)
 
 ## This tool supports:
 ### OS:
