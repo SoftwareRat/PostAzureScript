@@ -19,7 +19,7 @@
 * Github: [@SoftwareRat](https://github.com/SoftwareRat)
 
 # Execution
-[Follow this tutorial for executing your script](https://github.com/SoftwareRat/PostAzureScript/wiki/Execute-script)
+[Follow this tutorial for executing this script](https://github.com/SoftwareRat/PostAzureScript/wiki/Execute-script)
 
 ## This tool supports:
 ### OS:
