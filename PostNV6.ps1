@@ -63,24 +63,20 @@ function CheckOSsupport {
     }
 }
 
-function TestForAzure {
-# Checking if this script get executed on a Microsoft Azure instance
+function TestForAzure { 
+    # Pinging Azure Instance Metadata Service
+    # Source: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service?tabs=windows
     $azure = $(
-# Pinging Azure Instance Metadata Service
-# Source: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service?tabs=windows
-    Try {(Invoke-WebRequest -Uri "http://169.254.169.254/metadata/instance?api-version=2020-09-01" -Headers {Metadata="true"} -TimeoutSec 5)}
-        catch {}
-        )
-        # IF startement for WebRequest Statuscode
-        if ($azure.StatusCode -eq 200) {
-        # When Azure instance got detected
+                  Try {(Invoke-WebRequest -Uri "http://169.254.169.254/metadata/instance?api-version=2020-09-01" -Headers @{Metadata="true"} -TimeoutSec 5)}
+                  catch {}              
+               )
+
+    if ($azure.StatusCode -eq 200) {
         Write-Host -ForegroundColor Green "Microsoft Azure Instance detected"
         }
     Else {
-        # When non-azure instance got detected
-        Write-Output "VM is not hosted on Azure. Aborting script..."
-        Start-Sleep -Seconds 3
         throw "No Azure instance detected."
+        Pause
         }
 }
 
