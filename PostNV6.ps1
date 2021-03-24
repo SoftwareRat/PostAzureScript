@@ -191,8 +191,7 @@ $global:streamingsolutionselection = StreamingSolutionSelection
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
         Clear-Host
-        Write-Error 'RDP session detected, please use alternatives like AnyDesk or VNC!'
-        throw "RDP session detected"
+        throw 'RDP session detected, please use alternatives like AnyDesk or VNC!'
         pause
     }
 }
