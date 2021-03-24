@@ -7,7 +7,8 @@
 </p>
 
 > Automate to configure Azure NV6 instances for CloudGaming
-## ⚠ DON'T USE IT YET, ITS STILL IN DEVELOPMENT
+
+<h2 align="center">⚠ DON'T USE IT YET, ITS STILL IN DEVELOPMENT</h2>
 
 ## Author
 
