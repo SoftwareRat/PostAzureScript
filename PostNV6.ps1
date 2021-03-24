@@ -35,13 +35,13 @@ function AdminCheck {
 
 # Creating folder everything related to this script 
 if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AzureTools -Force -ItemType Directory | Out-Null}
-if((Test-Path -Path 'C:\AzureTools\Script') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory | Out-Null}
 if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory | Out-Null}
 if((Test-Path -Path 'C:\AzureTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name drivers -Force -ItemType Directory | Out-Null}
 if((Test-Path -Path 'C:\AzureTools\drivers\UpdateTool') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name UpdateTool -Force -ItemType Directory | Out-Null}
 if((Test-Path -Path 'C:\AzureTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name GameStream -Force -ItemType Directory | Out-Null}
 if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name DirectX -Force -ItemType Directory | Out-Null}
-Move-Item -Force -Recurse "C:\AzureTools\Script\Tools\*" -Destination "C:\AzureTools\" | Out-Null
+Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | Out-Null
 
 function CheckOSsupport {
     if($osType.Caption -like "*Windows Server 2012 R2*") {
@@ -702,11 +702,8 @@ $host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.5]"
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-                                                              ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-                                    ░█▀▀▄░▀▀█░█░▒█░█▀▀▄░█▀▀   ██░▄▄░█░▄▄▀█░▄▀▄░██▄██░▄▄▀█░▄▄▄████░▄▄▄░█▀▄▀█░▄▄▀██▄██▀▄▄▀█▄░▄
-                                    ▒█▄▄█░▄▀▒░█░▒█░█▄▄▀░█▀▀   ██░█▀▀█░▀▀░█░█▄█░██░▄█░██░█░█▄▀████▄▄▄▀▀█░█▀█░▀▀▄██░▄█░▀▀░██░█
-                                    ▒█░▒█░▀▀▀░░▀▀▀░▀░▀▀░▀▀▀   ██░▀▀▄█▄██▄█▄███▄█▄▄▄█▄██▄█▄▄▄▄████░▀▀▀░██▄██▄█▄▄█▄▄▄█░█████▄█
-                                                              ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀      
+Azure Gaming Script [Version 0.5]
+(c) 2021 SoftwareRat. All rights reserved.
 '
 
 if(!$RebootSkip) {
