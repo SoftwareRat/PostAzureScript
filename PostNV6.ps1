@@ -1,10 +1,13 @@
 # Argument for using Script after Reboot [Moonlight only]
-Param([Parameter(Mandatory=$false)] [Switch]$MoonlightAfterReboot)
-if(!$RebootSkip) {
+param (
+    [switch]$MoonlightAfterReboot = $false
+)
+
+if(!$MoonlightAfterReboot) {
     # Start logging for this script 
     Start-Transcript -Path "C:\AzureTools\logs\script.log"} else
     # Start logging for this script after reboot
-    {Start-Transcript -Path "C:\AzureTools\logs\scriptafterreboot.log"}
+    {Start-Transcript -Path "C:\AzureTools\logs\ScriptReboot.log"}
 
 # Set function to test for existance of Registry valves
 function Test-RegistryValue {
@@ -76,7 +79,6 @@ function TestForAzure {
         }
     Else {
         throw "No Azure instance detected."
-        Pause
         }
 }
 
@@ -84,7 +86,7 @@ function ManageWindowsFeatures {
     # Enable .NET 3.5 for running software based on this framework
     # Source: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/enable-net-framework-35-by-using-windows-powershell#steps
     Install-WindowsFeature -Name 'Net-Framework-Core' | Out-Null
-    # 
+    # Manage special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # Install qWave
         Install-WindowsFeature -Name 'qWave' -NoRestart | Out-Null
@@ -92,6 +94,12 @@ function ManageWindowsFeatures {
         Install-WindowsFeature -Name 'Desktop-Experience' -NoRestart | Out-Null
         # Install Media Foundaction for better Audio/Video
         Install-WindowsFeature -Name 'Server-Media-Foundation' -NoRestart | Out-Null}
+    
+    # Manage special features for Server 2016/2019
+    if($osType.Caption -like "*Windows Server 2016*" -or "*Windows Server 2019*") {
+        # Uninstalling Windows Defender for saving resources
+        Uninstall-WindowsFeature -Name Windows-Defender
+    }
     # Enable DirectPlay for older games
     Install-WindowsFeature -Name 'DirectPlay' -NoRestart | Out-Null
     # Disable Internet Explorer for security reasons and better open-source alternatives
@@ -102,9 +110,9 @@ function ManageWindowsFeatures {
     Install-WindowsFeature -Name 'Wireless-Networking' -NoRestart | Out-Null
 }
 
-# Downloading GPU Updater tool and creating s for the
+# Downloading GPU Updater tool and creating shortcut for it
 function GPUDriverUpdate {
-    ProgressWriter -Status "Downloading GPU Update on Azure" -PercentComplete $PercentComplete
+    ProgressWriter -Status "Downloading GPU UpdateTool on Azure" -PercentComplete $PercentComplete
     (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\' | Out-Null
     Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
@@ -161,7 +169,7 @@ function InstallCommonSoftware {
     ProgressWriter -Status "Installing VLC media Player" -PercentComplete $PercentComplete
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait | Out-Null
     # Download Microsoft Visual C++ Redist
-    ProgressWriter -Status "Installing Microsoft Visual C++ re" -PercentComplete $PercentComplete
+    ProgressWriter -Status "Installing Microsoft Visual C++ redist" -PercentComplete $PercentComplete
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait | Out-Null
     # Downloading and installing required DirectX librarys
     (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe", "C:\AzureTools\directx_Jun2010_redist.exe")
@@ -169,8 +177,7 @@ function InstallCommonSoftware {
     Start-Process -FilePath "C:\AzureTools\DirectX\DXSETUP.EXE" -ArgumentList '/silent' -Wait 
 }
 
-# Currently broken, will be fixed soon
-<#
+<# Currently broken, will be fixed soon
 function StreamingSolutionSelection {
     Do {
        $selection = Read-Host "Do you want to use Moonlight or Parsec? (M|P)"
@@ -186,15 +193,20 @@ $global:streamingsolutionselection = StreamingSolutionSelection
 
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
-        Clear-Host
-        throw 'RDP session detected, please use alternatives like AnyDesk or VNC!'
-        pause
+        throw '[rdp_session_detected] RDP session detected, please use alternatives like AnyDesk or VNC!
+For more information check out'
     }
 }
 
 function InstallDrivers {
     # Installing NVIDIA drivers
     Start-Process -FilePath "$DriverSetup" -ArgumentList "/s","/clean" -NoNewWindow -Wait
+    $script = "-Command `"Set-ExecutionPolicy Unrestricted; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
+    $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
+    $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot" | Out-Null
+    Restore-Computer -Force -Wait 3
 }
 
 function EnableAudio {
@@ -204,6 +216,17 @@ ProgressWriter -Status "Enabling Audio" -PercentComplete $PercentComplete
     Set-Service -Name "Windows Audio Endpoint Builder" -StartupType Automatic | Out-Null 
     Start-Service -Name "Windows Audio" | Out-Null 
     Start-Service -Name "Windows Audio Endpoint Builder" | Out-Null
+# Downloading and Installing VBCABLE driver
+IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
+    (New-Object Systen.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
+    Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE' | Out-Null
+    $VBcableErrorCode = (Start-Process -FilePath "C:\AzureTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait -PassThru).GFEExitCode
+        IF ($VBcableErrorCode -eq 0) {
+        Write-Host -Object 'VBcable successfully installed'
+        } else {
+        Write-Error -Message ('[ERROR] VBcable failed to install (Errorcode {0})' -f $VBcableErrorCode)
+        }
+    }
 }
 
 function SetWindowsSettings {
@@ -254,27 +277,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
     SetSecureAutoLogon `
         -Username $env:USERNAME `
-        -Password (Read-Host -AsSecureString) `
-}
-
-function DownloadNVIDIAdrivers {
-ProgressWriter -Status "Downloading NVIDIA drivers" -PercentComplete $PercentComplete
-# Downloading NVIDIA drivers
-if($osType.Caption -like "*Windows Server 2012 R2*") {
-    # This command get executed when OS is Server 2012
-    Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green    
-    $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
-    $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
-    (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
-    Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_server2012R2_64bit_azure_swl.exe
-} else {
-    # This command get executed when OS is Server 2016/2019
-    Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
-    $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
-    $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
-    (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
-    Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_win10_server2016_server2019_64bit_azure_swl.exe
-    }
+        -Password (Read-Host -AsSecureString)
 }
 
 function SetSecureAutoLogon {
@@ -305,7 +308,6 @@ begin {
 	[string] $WinlogonBannerPolicyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
 
 	[string] $Enable = 1
-	[string] $Disable = 0
 	
 	#region C# Code to P-invoke LSA LsaStorePrivateData function.
 	Add-Type @"
@@ -587,6 +589,7 @@ process {
 		
 	.LINK
 		http://msdn.microsoft.com/en-us/library/aa378750
+
 #>
 }
 
@@ -607,7 +610,7 @@ function AddNewDisk {
     # Rollback registry key
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 1
     # Restart Explorer
-    Start-Process "C:\Windows\explorer.exe"
+    Start-Process "C:\Windows\System32\userinit.exe"
     }
 }
 
@@ -636,7 +639,24 @@ function BlockHost {
     $Appended = ""
 
     foreach($Entry in $BlockedHosts) {
-        if($HostsContent -notmatch $Entry) {
+        if($HostsContent -notmatch $Entry) {function BlockHost {
+            $BlockedHosts = @("telemetry.gfe.nvidia.com", "ls.dtrace.nvidia.com", "ota.nvidia.com", "ota-downloads.nvidia.com", "rds-assets.nvidia.com", "nvidia.tt.omtrdc.net", "api.commune.ly", "namso-gen.com", "nulled.to")
+            $HostsFile = "$env:SystemRoot\System32\Drivers\etc\hosts"
+            $HostsContent = [String](Get-Content -Path $HostsFile)
+            $Appended = ""
+        
+            foreach($Entry in $BlockedHosts) {
+                if($HostsContent -notmatch $Entry) {
+                    $Appended += "0.0.0.0 $Entry`r`n"
+                }
+            }
+        
+            if($Appended.Length -gt 0) {
+                $Appended = $Appended.Substring(0,$Appended.length-2)
+                Write-Host "Added hosts:`r`n$Appended"
+                Add-Content -Path $HostsFile -Value $Appended
+            }
+        }
             $Appended += "0.0.0.0 $Entry`r`n"
         }
     }
@@ -648,7 +668,28 @@ function BlockHost {
     }
 }
 
+function DownloadNVIDIAdrivers {
+    ProgressWriter -Status "Downloading NVIDIA drivers" -PercentComplete $PercentComplete
+    # Downloading NVIDIA drivers
+    if($osType.Caption -like "*Windows Server 2012 R2*") {
+        # This command get executed when OS is Server 2012
+        Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green    
+        $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
+        $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
+        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
+        Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_server2012R2_64bit_azure_swl.exe
+    } else {
+        # This command get executed when OS is Server 2016/2019
+        Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
+        $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
+        $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
+        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
+        Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_win10_server2016_server2019_64bit_azure_swl.exe}
+    }
+        
+
 function GameStreamAfterReboot {
+    Unregister-ScheduledTask -TaskName "GSSetup" -Confirm:$false 
     ProgressWriter -Status "Patching GameStream to work with this GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AdminTools\GameStream\Patcher.ps1")
@@ -666,6 +707,25 @@ function GameStreamAfterReboot {
     }
     & $PSScriptRoot\Patcher.ps1 -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll";
 }
+
+function InstallGFE {
+    $IP = (Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPAddress")
+    IF ($IP.countrycode -eq "US" -or $IP.countrycode -eq "SG") {
+        Set-Variable -Name 'CountryCode' -Value 'us' | Out-Null
+    } elseif ($IP.countrycode -eq "NL" -or $IP.countrycode -eq "UK") {
+        Set-Variable -Name 'CountryCode' -Value 'uk' | Out-Null
+    } elseif ($IP.countrycode -eq "JP") {
+        Set-Variable -Name 'CountryCode' -Value 'jp' | Out-Null
+    } elseif ($IP.countrycode -eq "IN") {
+        Set-Variable -Name 'CountryCode' -Value 'in' | Out-Null
+    } else {Set-Variable -Name 'CountryCode' -Value 'us' | Out-Null}
+    Write-Host -Object ('Detected country: ({0})' -f $CountryCode)
+    (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForce_Experience.exe")
+    $GFEExitCode = (Start-Process -FilePath "C:\AzureTools\GeForce_Experience.exe" -ArgumentList "-s" -NoNewWindow -Wait -PassThru).GFEExitCode
+    if($GFEExitCode -eq 0) {Write-Host "Successfully installed GeForce Experience" -ForegroundColor Green}
+    else { 
+    throw ("[ERROR {0}] GeForce Experience installation failed." -f $GFEExitCode)}    
+    }
 
 Function XboxController {
     ProgressWriter -Status "Downloading controller drivers" -PercentComplete $PercentComplete
@@ -691,17 +751,17 @@ Function XboxController {
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.5]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.7]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Gaming Script [Version 0.5]
+Azure Automation Gaming Script [Version 0.7]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
-if(!$RebootSkip) {
+if(!$MoonlightAfterReboot) {
     $ScripttaskList = (
     "CheckForRDP",
     "TestForAzure",
@@ -716,7 +776,11 @@ if(!$RebootSkip) {
     "InstallDrivers"
 )
 } else {
-    $ScripttaskList = (
+    $ScripttaskListAfterReboot = (
+    "CheckForRDP",
+    "TestForAzure",
+    "CheckOSsupport",
+    "InstallGFE",
     "GameStreamAfterReboot",
     "DisableVGA"
 )}
@@ -726,9 +790,14 @@ foreach ($func in $ScripttaskList) {
     & $func $PercentComplete
     }
 
+foreach ($func in $ScripttaskListAfterReboot) {
+    $PercentComplete =$($ScripttaskListAfterReboot.IndexOf($func) / $ScripttaskListAfterReboot.Count * 100)
+    & $func $PercentComplete
+    }
+
 Clear-Host
 Write-Host -Object 'This script finished all tasks'
 Write-Host -Object 'When you have bugs or feedback suggestions,'
 Write-Host -Object 'go to the GitHub repository of this project'
-Restart-Computer -Wait 5
-exit
+Restart-Computer -Wait 5 -Force
+EXIT
