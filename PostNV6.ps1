@@ -24,7 +24,7 @@ function Test-RegistryValue {
     )
 
     try {
-        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction Stop | if (VerboseMode -eq $false {Out-Null})
+        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction Stop | Out-Null
         return $true
         }
     catch {
@@ -40,14 +40,14 @@ function AdminCheck {
 }
 
 # Creating folder everything related to this script 
-if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AzureTools -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name drivers -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\drivers\UpdateTool') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name UpdateTool -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name GameStream -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name DirectX -Force -ItemType Directory | if (VerboseMode -eq $false {Out-Null})}
-Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | if (VerboseMode -eq $false {Out-Null})
+if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AzureTools -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name drivers -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\drivers\UpdateTool') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name UpdateTool -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name GameStream -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name DirectX -Force -ItemType Directory | Out-Null}
+Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | Out-Null
 
 function CheckOSsupport {
     if($osType.Caption -like "*Windows Server 2012 R2*" -or $osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
@@ -86,36 +86,36 @@ function TestForAzure {
 function ManageWindowsFeatures {
     # Enable .NET 3.5 for running software based on this framework
     # Source: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/enable-net-framework-35-by-using-windows-powershell#steps
-    Install-WindowsFeature -Name 'Net-Framework-Core' | if (VerboseMode -eq $false {Out-Null})
+    Install-WindowsFeature -Name 'Net-Framework-Core' | Out-Null
     # Manage special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # Install qWave
-        Install-WindowsFeature -Name 'qWave' | if (VerboseMode -eq $false {Out-Null})
+        Install-WindowsFeature -Name 'qWave' | Out-Null
         # Install Desktop Experience for more PC features
-        Install-WindowsFeature -Name 'Desktop-Experience' | if (VerboseMode -eq $false {Out-Null})
+        Install-WindowsFeature -Name 'Desktop-Experience' | Out-Null
         # Install Media Foundaction for better Audio/Video
-        Install-WindowsFeature -Name 'Server-Media-Foundation' | if (VerboseMode -eq $false {Out-Null})}
+        Install-WindowsFeature -Name 'Server-Media-Foundation' | Out-Null}
     
     # Manage special features for Server 2016/2019
     if($osType.Caption -like "*Windows Server 2016*" -or $osType.Caption -like "*Windows Server 2019*") {
         # Uninstalling Windows Defender for saving resources
-        Uninstall-WindowsFeature -Name 'Windows-Defender' | if (VerboseMode -eq $false {Out-Null})
+        Uninstall-WindowsFeature -Name 'Windows-Defender' | Out-Null
     }
     # Enable DirectPlay for older games
-    Install-WindowsFeature -Name 'DirectPlay' | if (VerboseMode -eq $false {Out-Null})
+    Install-WindowsFeature -Name 'DirectPlay' | Out-Null
     # Disable Internet Explorer for security reasons and better open-source alternatives
-    Uninstall-WindowsFeature -Name 'Internet-Explorer-Optional-amd64' | if (VerboseMode -eq $false {Out-Null})
+    Uninstall-WindowsFeature -Name 'Internet-Explorer-Optional-amd64' | Out-Null
     # Disable Windows Media Player for security reasons and better open-source alternatives
-    Uninstall-WindowsFeature -Name 'WindowsMediaPlayer' | if (VerboseMode -eq $false {Out-Null})
+    Uninstall-WindowsFeature -Name 'WindowsMediaPlayer' | Out-Null
     # Enable Wireless LAN Service because some software need it
-    Install-WindowsFeature -Name 'Wireless-Networking' | if (VerboseMode -eq $false {Out-Null})
+    Install-WindowsFeature -Name 'Wireless-Networking' | Out-Null
 }
 
 # Downloading GPU Updater tool and creating shortcut for it
 function GPUDriverUpdate {
     ProgressWriter -Status "Downloading GPU UpdateTool on Azure" -PercentComplete $PercentComplete
     (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
-    Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\' | if (VerboseMode -eq $false {Out-Null})
+    Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\' | Out-Null
     Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
     Unblock-File -Path "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"
     $Shell = New-Object -ComObject ("WScript.Shell")
@@ -134,28 +134,28 @@ function InstallChocolatey {
     Write-Output "Installing Chocolatey..."
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-WebRequest 'https://chocolatey.org/install.ps1' -UseBasicParsing | Invoke-Expression | if (VerboseMode -eq $false {Out-Null})
+    Invoke-WebRequest 'https://chocolatey.org/install.ps1' -UseBasicParsing | Invoke-Expression
     # Enable to execute PowerShell scripts silently without to confirm
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait | Out-Null
 }
 
 function InstallGameLaunchers {
 # Download and install most common game launchers 
     # Download and install Steam
     Write-Host -Object 'Downloading and installing Steam'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait | Out-Null
     # Download and install Epic Games Launcher
     Write-Host -Object 'Downloading and installing EpicGames Launcher'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait | Out-Null
     # Download and install Origin
     Write-Host -Object 'Downloading and installing Origin'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait | Out-Null
     # Download and install Ubisoft Connect [earlier known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait | Out-Null
     # Download and install GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait | Out-Null
 }
 
 function InstallCommonSoftware {
@@ -165,21 +165,21 @@ function InstallCommonSoftware {
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait | Out-
     # Download and install Google Chrome
     ProgressWriter -Status "Installing Google Chrome" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait | Out-Null
     # Download and install VLC media Player
     ProgressWriter -Status "Installing VLC media Player" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait | Out-Null
     # Download Microsoft Visual C++ Redist
     ProgressWriter -Status "Installing Microsoft Visual C++ redist" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait | Out-Null
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Download Open Shell [when OS is Server 2012 R2]
     ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait | if (VerboseMode -eq $false {Out-Null})}
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait | Out-Null}
     # Downloading and installing required DirectX librarys
     (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe", "C:\AzureTools\directx_Jun2010_redist.exe")
-    Start-Process -FilePath "C:\AzureTools\directx_Jun2010_redist.exe" -ArgumentList '/T:C:\AzureTools\DirectX /Q' -Wait | if (VerboseMode -eq $false {Out-Null})
-    Start-Process -FilePath "C:\AzureTools\DirectX\DXSETUP.EXE" -ArgumentList '/silent' -Wait | if (VerboseMode -eq $false {Out-Null})
+    Start-Process -FilePath "C:\AzureTools\directx_Jun2010_redist.exe" -ArgumentList '/T:C:\AzureTools\DirectX /Q' -Wait | Out-Null
+    Start-Process -FilePath "C:\AzureTools\DirectX\DXSETUP.EXE" -ArgumentList '/silent' -Wait | Out-Null
 }
 
 <# Currently broken, will be fixed soon
@@ -210,21 +210,21 @@ function InstallDrivers {
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
-    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot" | if (VerboseMode -eq $false {Out-Null})
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot" | Out-Null
     Restore-Computer -Force -Wait 3
 }
 
 function EnableAudio {
 ProgressWriter -Status "Enabling Audio" -PercentComplete $PercentComplete
 # Enabling Audio on Windows Server
-    Set-Service -Name "Audiosrv" -StartupType Automatic | if (VerboseMode -eq $false {Out-Null})
-    Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic | if (VerboseMode -eq $false {Out-Null}) 
-    Start-Service -Name "Audiosrv" | if (VerboseMode -eq $false {Out-Null}) 
-    Start-Service -Name "AudioEndpointBuilder" | if (VerboseMode -eq $false {Out-Null})
+    Set-Service -Name "Audiosrv" -StartupType Automatic | Out-Null
+    Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic | Out-Null 
+    Start-Service -Name "Audiosrv" | Out-Null 
+    Start-Service -Name "AudioEndpointBuilder" | Out-Null
 # Downloading and Installing VBCABLE driver
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
-    Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE' | if (VerboseMode -eq $false {Out-Null})
+    Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE' | Out-Null
     $VBcableErrorCode = (Start-Process -FilePath "C:\AzureTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait -PassThru).GFEExitCode
         IF ($VBcableErrorCode -eq 0) {
         Write-Host -Object 'VBcable successfully installed'
@@ -237,54 +237,54 @@ IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -Pat
 function SetWindowsSettings {
 ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComplete
 # Disables Server Manager opening on Startup
-    Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | if (VerboseMode -eq $false {Out-Null})
+    Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
 
 # Enable Dark Mode [Server 2019 only]
     if ($osType.Caption -like "*Windows Server 2019*") {
-        if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize') -eq $true) {} Else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes' -Name Personalize | if (VerboseMode -eq $false {Out-Null})}
+        if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize') -eq $true) {} Else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes' -Name Personalize | Out-Null}
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name AppsUseLightTheme -Value 0}
 
 # Disable CharmsUI [Server 2012 R2 only]
     if ($osType.Caption -like "*Windows Server 2012 R2*") {
-        if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\' -Name EdgeUi | if (VerboseMode -eq $false {Out-Null})}
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTLCorner -Value 1 | if (VerboseMode -eq $false {Out-Null})
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTRCorner -Value 1 | if (VerboseMode -eq $false {Out-Null})
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1 | if (VerboseMode -eq $false {Out-Null})
+        if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\' -Name EdgeUi | Out-Null}
+        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTLCorner -Value 1 | Out-Null
+        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTRCorner -Value 1 | Out-Null
+        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1 | Out-Null
     }
 # Disable "Shutdown Event Tracker"
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force | Out-Null}
     Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 -ErrorAction SilentlyContinue
 
 # Disable Windows Update
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | if (VerboseMode -eq $false {Out-Null})} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'UpdateServiceURLAlternative') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUSatusServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled" | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'AUOptions') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1 | if (VerboseMode -eq $false {Out-Null})} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1 | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'UseWUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1 | if (VerboseMode -eq $false {Out-Null})} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1 | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'UpdateServiceURLAlternative') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUSatusServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled" | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'AUOptions') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1 | Out-Null} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1 | Out-Null}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'UseWUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1 | Out-Null} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1 | Out-Null}
 
 # Change "Performance for Applications"
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control' -value 'PriorityControl') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 | if (VerboseMode -eq $false {Out-Null})} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 -PropertyType DWORD | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control' -value 'PriorityControl') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 | Out-Null} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 -PropertyType DWORD | Out-Null}
 
 # Disabling Aero Shake
-    if((Test-RegistryValue -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 | if (VerboseMode -eq $false {Out-Null})} else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 -PropertyType DWORD | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-RegistryValue -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 | Out-Null} else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 -PropertyType DWORD | Out-Null}
 
 # Set automatic Time and Timezone
-    Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP | if (VerboseMode -eq $false {Out-Null})
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name Start -Value 00000003 | if (VerboseMode -eq $false {Out-Null})
+    Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP | Out-Null
+    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name Start -Value 00000003 | Out-Null
 
 # Disable "New network window"
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network' -Value NewNetworkWindowOff)-eq $true) {} Else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff" | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network' -Value NewNetworkWindowOff)-eq $true) {} Else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff" | Out-Null}
 
 # Disable logout and lock user from start menu
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Value StartMenuLogOff )-eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | if (VerboseMode -eq $false {Out-Null})} Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System') -eq $true) {} Else {New-Item -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name Software | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Value DisableLockWorkstation) -eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | if (VerboseMode -eq $false {Out-Null}) } Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Value StartMenuLogOff )-eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null} Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name StartMenuLogOff -Value 1 | Out-Null}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System') -eq $true) {} Else {New-Item -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name Software | Out-Null}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Value DisableLockWorkstation) -eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null } Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 | Out-Null}
 
 # Disable "Recent start menu" items
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer | if (VerboseMode -eq $false {Out-Null})}
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value HideRecentlyAddedApps) -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer | if (VerboseMode -eq $false {Out-Null})}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer | Out-Null}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value HideRecentlyAddedApps) -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer | Out-Null}
 
 # Set Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
@@ -619,7 +619,7 @@ function AddNewDisk {
     # Killing explorer process as a WAR for not output format wizard
     Stop-Process -Name explorer* -Force
     # Create Disk with "SoftwareDisk" as name mounted as "A:" 
-    Get-Disk | Where-Object PartitionStyle -Eq "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel "SoftwareDisk" -Confirm:$false | if (VerboseMode -eq $false {Out-Null})
+    Get-Disk | Where-Object PartitionStyle -Eq "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel "SoftwareDisk" -Confirm:$false | Out-Null
     # Rollback registry key
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 1
     # Restart Explorer
@@ -632,19 +632,19 @@ ProgressWriter -Status "Disable non-NVIDIA gpu's" -PercentComplete $PercentCompl
 # Disable non-NVIDIA GPU's
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # This command get executed when OS is Server 2012
-        Start-Process -FilePath $($WorkDir) + 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow | if (VerboseMode -eq $false {Out-Null})
+        Start-Process -FilePath $($WorkDir) + 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow | Out-Null
     } else {
         # This command get executed when OS is Server 2016/2019
-        Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false | if (VerboseMode -eq $false {Out-Null})
+        Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false | Out-Null
     }
 }
 
 function DisableFloppyAndCDROM {
     ProgressWriter -Status "Disable useless hardware" -PercentComplete $PercentComplete
     # Disable Floppy Disk drive
-        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow | if (VerboseMode -eq $false {Out-Null})
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow | Out-Null
     # Disable CDROM drive
-        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow | if (VerboseMode -eq $false {Out-Null})
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow | Out-Null
 }
 
 Function ProgressWriter {
@@ -697,10 +697,10 @@ function GameStreamAfterReboot {
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AdminTools\GameStream\Patcher.ps1")
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
-    New-NetFirewallRule -DisplayName "NVIDIA GameStream TCP" -Direction Inbound -LocalPort 47984,47989,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol TCP -Action Allow | if (VerboseMode -eq $false {Out-Null})
-    New-NetFirewallRule -DisplayName "NVIDIA GameStream UDP" -Direction Inbound -LocalPort 47998,47999,48000,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol UDP -Action Allow | if (VerboseMode -eq $false {Out-Null})
+    New-NetFirewallRule -DisplayName "NVIDIA GameStream TCP" -Direction Inbound -LocalPort 47984,47989,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol TCP -Action Allow | Out-Null
+    New-NetFirewallRule -DisplayName "NVIDIA GameStream UDP" -Direction Inbound -LocalPort 47998,47999,48000,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol UDP -Action Allow | Out-Null
     Write-Host "Patching GFE to allow the GPU's Device ID..."
-    Stop-Service -Name NvContainerLocalSystem | if (VerboseMode -eq $false {Out-Null})
+    Stop-Service -Name NvContainerLocalSystem | Out-Null
     $TargetDevice = (Get-WmiObject Win32_VideoController | Select-Object PNPDeviceID,Name | Where-Object Name -match "nvidia" | Select-Object -First 1) 
     if(!$TargetDevice) {
     throw "Failed to find an NVIDIA GPU."
@@ -716,21 +716,21 @@ function StartupScript {
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
-    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot" | if (VerboseMode -eq $false {Out-Null})
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot" | Out-Null
 
 }
 
 function InstallGFE {
     $IP = (Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPAddress")
     IF ($IP.countrycode -eq "US" -or $IP.countrycode -eq "SG") {
-        Set-Variable -Name 'CountryCode' -Value 'us' | if (VerboseMode -eq $false {Out-Null})
+        Set-Variable -Name 'CountryCode' -Value 'us' | Out-Null
     } elseif ($IP.countrycode -eq "NL" -or $IP.countrycode -eq "UK") {
-        Set-Variable -Name 'CountryCode' -Value 'uk' | if (VerboseMode -eq $false {Out-Null})
+        Set-Variable -Name 'CountryCode' -Value 'uk' | Out-Null
     } elseif ($IP.countrycode -eq "JP") {
-        Set-Variable -Name 'CountryCode' -Value 'jp' | if (VerboseMode -eq $false {Out-Null})
+        Set-Variable -Name 'CountryCode' -Value 'jp' | Out-Null
     } elseif ($IP.countrycode -eq "IN") {
-        Set-Variable -Name 'CountryCode' -Value 'in' | if (VerboseMode -eq $false {Out-Null})
-    } else {Set-Variable -Name 'CountryCode' -Value 'us' | if (VerboseMode -eq $false {Out-Null})}
+        Set-Variable -Name 'CountryCode' -Value 'in' | Out-Null
+    } else {Set-Variable -Name 'CountryCode' -Value 'us' | Out-Null}
     Write-Host -Object ('Detected country: ({0})' -f $CountryCode)
     (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForce_Experience.exe")
     $GFEExitCode = (Start-Process -FilePath "C:\AzureTools\GeForce_Experience.exe" -ArgumentList '-s' -NoNewWindow -Wait -PassThru).GFEExitCode
@@ -743,9 +743,9 @@ Function XboxController {
     ProgressWriter -Status "Downloading controller drivers" -PercentComplete $PercentComplete
     # Downloading basic Xbox 360 controller driver
     (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
-    if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory | if (VerboseMode -eq $false {Out-Null})}
-    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng" | if (VerboseMode -eq $false {Out-Null})
-    cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"' | if (VerboseMode -eq $false {Out-Null})
+    if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory | Out-Null}
+    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng" | Out-Null
+    cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
     # Downloading ViGEm
     if($osType.Caption -like "*Windows Server 2012*") {
         # This command get executed when OS is Server 2012
@@ -755,20 +755,20 @@ Function XboxController {
         # This command get executed when OS is Server 2016/2019
         $vigembus = (Invoke-WebRequest -Uri https://github.com/ViGEm/ViGEmBus/releases -UseBasicParsing).links.outerhtml -like "*ViGEmBusSetup_x64.msi*"
         (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AzureTools\ViGEmBusSetup_x64.msi')
-        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow | if (VerboseMode -eq $false {Out-Null})
+        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow | Out-Null
     }
 }
 
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.8.5]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.8.5.5]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.8.5]
+Azure Automation Gaming Script [Version 0.8.5.5]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
