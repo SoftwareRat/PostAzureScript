@@ -1,6 +1,9 @@
 $DATEANDTIME = (Get-Date -Format "ddMMyyyy_HH-mm-ss")
 $DATEANDTIMELOG = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 Start-Transcript -Path ("C:\AzureTools\logs\startup_" + $DATEANDTIME + ".log")
+write-host("=========================================================================")
+write-host("========================== Seat Startup =================================")
+write-host("=========================================================================")
 Write-Host ('[{0}] Forcing custom EDID' -f $DATEANDTIMELOG)
 cmd.exe /C "echo y | C:\AzureTools\Tools\forcedisp\Win10-ForceDispx64.exe C:\AzureTools\forcedisp\NvidiaVGX_custom_16_9_1920_1080.hex"
 Write-Host ('[{0}] Setting native resolution in the base image' -f $DATEANDTIMELOG)
@@ -17,4 +20,7 @@ $GameSeatDisplayError = (Start-Process -FilePath 'C:\AzureTools\GameSeatDisplay.
     } else {
         ("[ERROR {0}]: Failed setting primary display to nvidia head" -f $GameSeatDisplayError)
     }
+Write-Host("*************************************************************************")
+Write-Host("================= Completed Startup Script Execution  ===================")
+Write-Host("*************************************************************************")
 Stop-Transcript
