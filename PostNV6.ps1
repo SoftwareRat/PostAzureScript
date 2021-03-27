@@ -111,7 +111,7 @@ function ManageWindowsFeatures {
     Write-Output -InputObject 'Installing DirectPlay...'
     Get-WindowsFeature -Name "*Direct-Play*" | Install-WindowsFeature
     # Enable Wireless LAN Service because some software need it
-    Write-Output -InputObject 'Uninstall Wireless Networking...'
+    Write-Output -InputObject 'Install Wireless Networking...'
     Install-WindowsFeature -Name 'Wireless-Networking'
 }
 
@@ -766,13 +766,13 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.2]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.2.1]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.2]
+Azure Automation Gaming Script [Version 0.9.2.1]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
