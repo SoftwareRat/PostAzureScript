@@ -32,7 +32,7 @@ function Test-RegistryValue {
 function AdminCheck {
     If (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         # When this script get executed without administrator privileges
-        throw "This script got executed without Administrator privileges, please execute it with Administrator" 
+        throw "This script got executed without Administrator privileges, please execute it as Administrator" 
     }
 }
 
@@ -47,13 +47,11 @@ if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 
 Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | Out-Null
 
 function CheckOSsupport {
-    if($osType.Caption -like "*Windows Server 2012 R2*") {
-        # When OS is Server 2012 R2
-        Write-Host -Object ('Your OS ({0}) is supported' -f $OSType.Caption) -ForegroundColor Green
-    } elseif ($osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
-        # When OS is Server 2016 or 2019
+    if($osType.Caption -like "*Windows Server 2012 R2*" -or $osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
+        # When OS is supported
         Write-Host -Object ('Your OS ({0}) is supported' -f $OSType.Caption) -ForegroundColor Green
     } else {
+        # When OS is not supported
         Write-Host -ForegroundColor Red ("
         Sorry, but we dont support your OS ({0}) at the moment.
         We are currently supporting following Windows versions:
@@ -89,25 +87,25 @@ function ManageWindowsFeatures {
     # Manage special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # Install qWave
-        Install-WindowsFeature -Name 'qWave' -NoRestart | Out-Null
+        Install-WindowsFeature -Name 'qWave' | Out-Null
         # Install Desktop Experience for more PC features
-        Install-WindowsFeature -Name 'Desktop-Experience' -NoRestart | Out-Null
+        Install-WindowsFeature -Name 'Desktop-Experience' | Out-Null
         # Install Media Foundaction for better Audio/Video
-        Install-WindowsFeature -Name 'Server-Media-Foundation' -NoRestart | Out-Null}
+        Install-WindowsFeature -Name 'Server-Media-Foundation' | Out-Null}
     
     # Manage special features for Server 2016/2019
     if($osType.Caption -like "*Windows Server 2016*" -or "*Windows Server 2019*") {
         # Uninstalling Windows Defender for saving resources
-        Uninstall-WindowsFeature -Name Windows-Defender
+        Uninstall-WindowsFeature -Name 'Windows-Defender' | Out-Null
     }
     # Enable DirectPlay for older games
-    Install-WindowsFeature -Name 'DirectPlay' -NoRestart | Out-Null
+    Install-WindowsFeature -Name 'DirectPlay' | Out-Null
     # Disable Internet Explorer for security reasons and better open-source alternatives
-    Uninstall-WindowsFeature -Name 'Internet-Explorer-Optional-amd64' -NoRestart | Out-Null
+    Uninstall-WindowsFeature -Name 'Internet-Explorer-Optional-amd64' | Out-Null
     # Disable Windows Media Player for security reasons and better open-source alternatives
-    Uninstall-WindowsFeature -Name 'WindowsMediaPlayer' -NoRestart | Out-Null
+    Uninstall-WindowsFeature -Name 'WindowsMediaPlayer' | Out-Null
     # Enable Wireless LAN Service because some software need it
-    Install-WindowsFeature -Name 'Wireless-Networking' -NoRestart | Out-Null
+    Install-WindowsFeature -Name 'Wireless-Networking' | Out-Null
 }
 
 # Downloading GPU Updater tool and creating shortcut for it
@@ -200,7 +198,7 @@ For more information check out'
 
 function InstallDrivers {
     # Installing NVIDIA drivers
-    Start-Process -FilePath "$DriverSetup" -ArgumentList "/s","/clean" -NoNewWindow -Wait
+    Start-Process -FilePath $DriverSetup -ArgumentList "/s","/clean" -NoNewWindow -Wait
     $script = "-Command `"Set-ExecutionPolicy Unrestricted; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
@@ -212,13 +210,13 @@ function InstallDrivers {
 function EnableAudio {
 ProgressWriter -Status "Enabling Audio" -PercentComplete $PercentComplete
 # Enabling Audio on Windows Server
-    Set-Service -Name "Windows Audio" -StartupType Automatic | Out-Null
-    Set-Service -Name "Windows Audio Endpoint Builder" -StartupType Automatic | Out-Null 
-    Start-Service -Name "Windows Audio" | Out-Null 
-    Start-Service -Name "Windows Audio Endpoint Builder" | Out-Null
+    Set-Service -Name "Audiosrv" -StartupType Automatic | Out-Null
+    Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic | Out-Null 
+    Start-Service -Name "Audiosrv" | Out-Null 
+    Start-Service -Name "AudioEndpointBuilder" | Out-Null
 # Downloading and Installing VBCABLE driver
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
-    (New-Object Systen.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
+    (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE' | Out-Null
     $VBcableErrorCode = (Start-Process -FilePath "C:\AzureTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait -PassThru).GFEExitCode
         IF ($VBcableErrorCode -eq 0) {
@@ -240,10 +238,11 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name AppsUseLightTheme -Value 0}
 
 # Disable "Shutdown Event Tracker"
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force | Out-Null}
     Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 -ErrorAction SilentlyContinue
 
 # Disable Windows Update
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate | Out-Null}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1" | Out-Null}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'UpdateServiceURLAlternative') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled" | Out-Null}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | Out-Null} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled" | Out-Null}
@@ -677,14 +676,14 @@ function DownloadNVIDIAdrivers {
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
-        Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_server2012R2_64bit_azure_swl.exe
+        Set-Variable -Name 'DriverSetup' -Value (C:\AzureTools\drivers\$($GPUversion)_grid_server2012R2_64bit_azure_swl.exe)
     } else {
         # This command get executed when OS is Server 2016/2019
         Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
-        Set-Variable -Name 'DriverSetup' -Value C:\AzureTools\drivers\$($GPUversion)_grid_win10_server2016_server2019_64bit_azure_swl.exe}
+        Set-Variable -Name 'DriverSetup' -Value (C:\AzureTools\drivers\$($GPUversion)_grid_win10_server2016_server2019_64bit_azure_swl.exe)
     }
         
 
@@ -751,13 +750,13 @@ Function XboxController {
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.7]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.8]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.7]
+Azure Automation Gaming Script [Version 0.8]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
@@ -773,6 +772,7 @@ if(!$MoonlightAfterReboot) {
     "AddNewDisk",
     "InstallChocolatey",
     "DownloadNVIDIAdrivers",
+    "GPUDriverUpdate",
     "InstallDrivers"
 )
 } else {
@@ -799,5 +799,5 @@ Clear-Host
 Write-Host -Object 'This script finished all tasks'
 Write-Host -Object 'When you have bugs or feedback suggestions,'
 Write-Host -Object 'go to the GitHub repository of this project'
-Restart-Computer -Wait 5 -Force
+Restart-Computer -Force -TimeoutSec 5 
 EXIT
