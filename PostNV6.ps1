@@ -24,7 +24,7 @@ function Test-RegistryValue {
     )
 
     try {
-        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction Stop
+        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction SilentlyContinue
         return $true
         }
     catch {
@@ -148,26 +148,27 @@ function InstallGameLaunchers {
 # Download and install most common game launchers 
     # Download and install Steam
     Write-Host -Object 'Downloading and installing Steam'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow
     # Download and install Epic Games Launcher
     Write-Host -Object 'Downloading and installing EpicGames Launcher'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait
-    # Download and install Origin
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow
+    <# Download and install Origin
     Write-Host -Object 'Downloading and installing Origin'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
     # Download and install Ubisoft Connect [earlier known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
+    #>
     # Download and install GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
 }
 
 function InstallCommonSoftware {
 # Download and install most common software
     # Download and install 7-Zip
     ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait | Out-
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Waitd
     # Download and install Google Chrome
     ProgressWriter -Status "Installing Google Chrome" -PercentComplete $PercentComplete
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait
@@ -180,7 +181,7 @@ function InstallCommonSoftware {
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Download Open Shell [when OS is Server 2012 R2]
     ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait}
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow}
     # Downloading and installing required DirectX librarys
     (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe", "C:\AzureTools\directx_Jun2010_redist.exe")
     Start-Process -FilePath "C:\AzureTools\directx_Jun2010_redist.exe" -ArgumentList '/T:C:\AzureTools\DirectX /Q' -Wait
@@ -623,7 +624,7 @@ ProgressWriter -Status "Disable non-NVIDIA gpu's" -PercentComplete $PercentCompl
 # Disable non-NVIDIA GPU's
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # This command get executed when OS is Server 2012
-        Start-Process -FilePath $($WorkDir) + 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
     } else {
         # This command get executed when OS is Server 2016/2019
         Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false
@@ -702,7 +703,7 @@ function GameStreamAfterReboot {
     Unregister-ScheduledTask -TaskName "ScriptAfterReboot" -Confirm:$false 
     ProgressWriter -Status "Patching GameStream to work with this GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
-    (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AdminTools\GameStream\Patcher.ps1")
+    (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
     New-NetFirewallRule -DisplayName "NVIDIA GameStream TCP" -Direction Inbound -LocalPort 47984,47989,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol TCP -Action Allow
     New-NetFirewallRule -DisplayName "NVIDIA GameStream UDP" -Direction Inbound -LocalPort 47998,47999,48000,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol UDP -Action Allow
@@ -724,7 +725,6 @@ function StartupScript {
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
     Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
-
 }
 
 function InstallGFE {
@@ -767,13 +767,13 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.1.5]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9]
+Azure Automation Gaming Script [Version 0.9.1.5]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
@@ -788,6 +788,8 @@ if(!$MoonlightAfterReboot) {
     "XboxController",
     "AddNewDisk",
     "InstallChocolatey",
+    "InstallGameLaunchers",
+    "InstallCommonSoftware",
     "DisableFloppyAndCDROM",
     "DownloadNVIDIAdrivers",
     "GPUDriverUpdate",
@@ -816,6 +818,7 @@ foreach ($func in $ScripttaskListAfterReboot) {
     }
 
 Clear-Host
+Stop-Transcript
 Write-Host -Object 'This script finished all tasks'
 Write-Host -Object 'When you have bugs or feedback suggestions,'
 Write-Host -Object 'go to the GitHub repository of this project'
