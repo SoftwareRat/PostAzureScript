@@ -44,7 +44,6 @@ if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -N
 if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name drivers -Force -ItemType Directory}
-if((Test-Path -Path 'C:\AzureTools\drivers\UpdateTool') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name UpdateTool -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\drivers\NVIDIA') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name NVIDIA -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name GameStream -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name DirectX -Force -ItemType Directory}
@@ -158,34 +157,34 @@ function InstallGameLaunchers {
     # Download and install Ubisoft Connect [earlier known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
-    #>
     # Download and install GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
+    #>
 }
 
 function InstallCommonSoftware {
 # Download and install most common software
     # Download and install 7-Zip
     ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Waitd
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow
     # Download and install Google Chrome
     ProgressWriter -Status "Installing Google Chrome" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait -NoNewWindow
     # Download and install VLC media Player
     ProgressWriter -Status "Installing VLC media Player" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow
     # Download Microsoft Visual C++ Redist
     ProgressWriter -Status "Installing Microsoft Visual C++ redist" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Download Open Shell [when OS is Server 2012 R2]
     ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow}
     # Downloading and installing required DirectX librarys
-    (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe", "C:\AzureTools\directx_Jun2010_redist.exe")
-    Start-Process -FilePath "C:\AzureTools\directx_Jun2010_redist.exe" -ArgumentList '/T:C:\AzureTools\DirectX /Q' -Wait
-    Start-Process -FilePath "C:\AzureTools\DirectX\DXSETUP.EXE" -ArgumentList '/silent' -Wait
+    ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow
+    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
 }
 
 <# Currently broken, will be fixed soon
@@ -259,7 +258,8 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control' -value 'PriorityControl') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 -PropertyType DWORD}
 
 # Disabling Aero Shake
-    if((Test-RegistryValue -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1} else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 -PropertyType DWORD}
+    if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
+    Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1} else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 -PropertyType DWORD
 
 # Set automatic Time and Timezone
     Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP
@@ -671,8 +671,7 @@ function DownloadNVIDIAdrivers {
         Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green    
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
-        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
-
+        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
     } else {
         # This command get executed when OS is Server 2016/2019
         Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
@@ -685,7 +684,7 @@ function DownloadNVIDIAdrivers {
 function InstallDrivers {
     # Installing NVIDIA drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
-    Start-Process -FilePath ($DRIVERPATH) -ArgumentList "/s","/clean" -NoNewWindow -Wait
+    Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean" -NoNewWindow -Wait
     $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
@@ -716,7 +715,7 @@ function GameStreamAfterReboot {
     if(!($TargetDevice.PNPDeviceID -match "DEV_(\w*)")) {
     throw "Regex failed to extract device ID."
     }
-    & $PSScriptRoot\Patcher.ps1 -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll";
+    & 'C:\AzureTools\GameStream\Patcher.ps1' -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll";
 }
 
 function StartupScript {
@@ -767,13 +766,13 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.1.5]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.2]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.1.5]
+Azure Automation Gaming Script [Version 0.9.2]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
