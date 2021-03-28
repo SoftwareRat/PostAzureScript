@@ -1,4 +1,4 @@
-# Argument for using Script after Reboot [Moonlight only]
+# Setting argument for using Script after Reboot [Moonlight only]
 param (
     [switch]$MoonlightAfterReboot = $false,
     [switch]$VerboseMode = $false
@@ -12,7 +12,7 @@ if(!$MoonlightAfterReboot) {
     # Start logging for this script after reboot
     {Start-Transcript -Path "C:\AzureTools\logs\ScriptReboot.log"}
 
-# Set function to test for existance of Registry valves
+# Setting function to test for existance of Registry valves
 function Test-RegistryValue {
     # https://www.jonathanmedd.net/2014/02/testing-for-the-presence-of-a-registry-key-and-value.html
     param (
@@ -33,13 +33,13 @@ function Test-RegistryValue {
 }
 
 function AdminCheck {
-    If (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        # When this script get executed without administrator privileges
-        throw "This script got executed without Administrator privileges, please execute it as Administrator" 
+    If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        # Exiting script when it gets executed without administrator privileges
+        throw "The script got executed without Administrator privileges, please execute it as Administrator" 
     }
 }
 
-# Creating folder everything related to this script 
+# Creating necessary folders
 if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AzureTools -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory}
 if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory}
@@ -51,24 +51,24 @@ Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\"
 
 function CheckOSsupport {
     if($osType.Caption -like "*Windows Server 2012 R2*" -or $osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
-        # When OS is supported
+        # If OS is supported
         Write-Host -Object ('Your OS ({0}) is supported' -f $OSType.Caption) -ForegroundColor Green
     } else {
-        # When OS is not supported
+        # If OS is not supported
         Write-Host -ForegroundColor Red ("
         Sorry, but we dont support your OS ({0}) at the moment.
         We are currently supporting following Windows versions:
         Microsoft Windows Server 2012 R2
         Microsoft Windows Server 2016
         Microsoft Windows Server 2019
-        Please use the OS above or suggest your OS in GitHub, thanks :)
+        Please use the OS above or suggest your OS in the GitHub Repository, thanks :)
         " -f $osType.Caption)
         throw "Unsupported OS detected"
     }
 }
 
 function TestForAzure { 
-    # Pinging Azure Instance Metadata Service
+    # Pinging Azure Instance Metadata Service to check if the system is an Azure VM
     # Source: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service?tabs=windows
     $azure = $(
                   Try {(Invoke-WebRequest -Uri "http://169.254.169.254/metadata/instance?api-version=2020-09-01" -Headers @{Metadata="true"} -TimeoutSec 5)}
@@ -84,54 +84,51 @@ function TestForAzure {
 }
 
 function ManageWindowsFeatures {
-    # Enable .NET 3.5 for running software based on this framework
+    # Enable .NET Framework 3.5 for running software based on it
     # Source: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/enable-net-framework-35-by-using-windows-powershell#steps
     Write-Output -InputObject 'Installing .NET Framework 3.5...'
     Install-WindowsFeature -Name 'Net-Framework-Core'
-    # Manage special features for Server 2012 R2
+    # Installing special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
-        # Install qWave
-        Write-Output -InputObject 'Install qWare...'
-        Install-WindowsFeature -Name 'qWave'
-        # Install Desktop Experience for more PC features
-        Write-Output -InputObject 'Install Desktop Experience...'
-        Install-WindowsFeature -Name 'Desktop-Experience'
+        # Installing qWave
+            Write-Output -InputObject 'Installing qWa<ve...'
+            Install-WindowsFeature -Name 'qWave'
+        # Installing Desktop Experience for more PC features
+            Write-Output -InputObject 'Install Desktop Experience...'
+            Install-WindowsFeature -Name 'Desktop-Experience'
         }
     
-    # Manage special features for Server 2016/2019
+    # Uninstalling Windows Defender on Windows Server 2016 and 2019 for saving resources
     if($osType.Caption -like "*Windows Server 2016*" -or $osType.Caption -like "*Windows Server 2019*") {
-        # Uninstalling Windows Defender for saving resources
         Write-Output -InputObject 'Uninstall Windows Defender...'
         Uninstall-WindowsFeature -Name 'Windows-Defender'
-        # Disable Internet Explorer for security reasons and better open-source alternatives
-        Uninstall-WindowsFeature -Name 'Internet-Explorer-Optional-amd64'
-        # Disable Windows Media Player for security reasons and better open-source alternatives
-        Uninstall-WindowsFeature -Name 'WindowsMediaPlayer'}
+    }
     # Enable DirectPlay for older games
-    Write-Output -InputObject 'Installing DirectPlay...'
-    Get-WindowsFeature -Name "*Direct-Play*" | Install-WindowsFeature
+        Write-Output -InputObject 'Installing DirectPlay...'
+        Get-WindowsFeature -Name "*Direct-Play*" | Install-WindowsFeature
     # Enable Wireless LAN Service because some software need it
-    Write-Output -InputObject 'Install Wireless Networking...'
-    Install-WindowsFeature -Name 'Wireless-Networking'
-}
+        Write-Output -InputObject 'Install Wireless Networking...'
+        Install-WindowsFeature -Name 'Wireless-Networking'
+    }
 
 function GPUDriverUpdate {
-    # Downloading GPU Updater tool and creating shortcut for it
-    ProgressWriter -Status "Downloading GPU UpdateTool on Azure" -PercentComplete $PercentComplete
-    (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
-    Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\'
-    Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
-    Unblock-File -Path "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"
-    $Shell = New-Object -ComObject ("WScript.Shell")
-    $ShortCut = $Shell.CreateShortcut("$env:USERPROFILE\Desktop\GPU Update Tool.lnk")
-    $ShortCut.TargetPath="powershell.exe"
-    $ShortCut.Arguments='-ExecutionPolicy Bypass -File "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"'
-    $ShortCut.WorkingDirectory = "C:\AzureTools\drivers\UpdateTool\";
-    $ShortCut.IconLocation = "C:\AzureTools\drivers\UpdateTool\Additional Files\UpdateTool.ico, 0";
-    $ShortCut.WindowStyle = 0;
-    $ShortCut.Description = "Updating your GPU drivers";
-    $ShortCut.Save()
+    if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
+        # Downloading GPU Updater Tool and creating desktop shortcut for it if OS is NOT Server 2012 R2
+        ProgressWriter -Status "Downloading GPU UpdateTool on Azure" -PercentComplete $PercentComplete
+        (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
+        Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\'
+        Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
+        $Shell = New-Object -ComObject ("WScript.Shell")
+        $ShortCut = $Shell.CreateShortcut("$env:USERPROFILE\Desktop\GPU Update Tool.lnk")
+        $ShortCut.TargetPath="C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        $ShortCut.Arguments='-ExecutionPolicy Bypass -File "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"'
+        $ShortCut.WorkingDirectory = "C:\AzureTools\drivers\UpdateTool\";
+        $ShortCut.IconLocation = "C:\AzureTools\drivers\UpdateTool\Additional Files\UpdateTool.ico, 0";
+        $ShortCut.WindowStyle = 0;
+        $ShortCut.Description = "Updating your GPU drivers";
+        $ShortCut.Save()
     }
+}
     
 function InstallChocolatey {
     # Download and install Chocolatey [Package Manager for Windows]
@@ -139,58 +136,58 @@ function InstallChocolatey {
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-WebRequest 'https://chocolatey.org/install.ps1' -UseBasicParsing | Invoke-Expression
-    # Enable to execute PowerShell scripts silently without to confirm
+    # Enable executing PowerShell scripts silently without to confirm
     Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait
 }
 
 function InstallGameLaunchers {
-# Download and install most common game launchers 
-    # Download and install Steam
-    Write-Host -Object 'Downloading and installing Steam'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow
-    # Download and install Epic Games Launcher
-    Write-Host -Object 'Downloading and installing EpicGames Launcher'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow
-    <# Download and install Origin
+# Downloading and installing common game launchers 
+    # Downloading and installing Steam
+        Write-Host -Object 'Downloading and installing Steam'
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow
+    # Downloading and installing Epic Games Launcher
+        Write-Host -Object 'Downloading and installing Epic Games Launcher'
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow
+    <# Adding this launchers as optional function soon 
+    # Downloading and installing Origin
     Write-Host -Object 'Downloading and installing Origin'
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
-    # Download and install Ubisoft Connect [earlier known as uPlay]
+    # Downloading and installing Ubisoft Connect [Used to be known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
-    # Download and install GOG GALAXY
+    # Downloading and installing GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
     #>
 }
 
 function InstallCommonSoftware {
-# Download and install most common software
-    # Download and install 7-Zip
-    ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow
-    # Download and install Google Chrome
-    ProgressWriter -Status "Installing Google Chrome" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install googlechrome" -Wait -NoNewWindow
-    # Download and install VLC media Player
-    ProgressWriter -Status "Installing VLC media Player" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow
-    # Download Microsoft Visual C++ Redist
-    ProgressWriter -Status "Installing Microsoft Visual C++ redist" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow
+# Downloading and installing most common software
+    # Downloading and installing 7-Zip
+        ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow
+    # Downloading and installing Google Chrome
+        ProgressWriter -Status "Installing Microsoft Edge" -PercentComplete $PercentComplete
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install microsoft-edge" -Wait -NoNewWindow
+    # Downloading and installing VLC Media Player
+        ProgressWriter -Status "Installing VLC Media Player" -PercentComplete $PercentComplete
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow
+    # Downloading Microsoft Visual C++ Redist
+        ProgressWriter -Status "Installing Microsoft Visual C++ Redist" -PercentComplete $PercentComplete
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow
+    # Downloading and installing required DirectX libraries
+        ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
+        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow
     if($osType.Caption -like "*Windows Server 2012 R2*") {
-    # Download Open Shell [when OS is Server 2012 R2]
-    ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow}
-    # Downloading and installing required DirectX librarys
-    ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow
-    if($osType.Caption -like "*Windows Server 2012 R2*") {
-    # Chosolatey package of DirectX-SDK is currently broken, install it manually
-    #Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
-    (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe", "C:\AzureTools\DXSDK_Jun10.exe")
-    Start-Process -FilePath 'C:\AzureTools\DXSDK_Jun10.exe' -ArgumentList '/U' -NoNewWindow -Wait}
+    # Installing following features if OS is Windows Server 2012 R2
+        # Downloading and installing Open Shell
+            ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
+            Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow
+        # Downloading and installing DirectX SDK
+            ProgressWriter -Status "Installing DirectX SDK" -PercentComplete $PercentComplete
+            Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
+    }
 }
-
 <# Currently broken, will be fixed soon
 function StreamingSolutionSelection {
     Do {
@@ -207,27 +204,25 @@ $global:streamingsolutionselection = StreamingSolutionSelection
 
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
-        throw '[rdp_session_detected] RDP session detected, please use alternatives like AnyDesk or VNC!
-For more information check out the GitHub Wiki'
+        throw "[rdp_session_detected] RDP session detected, please use alternatives like AnyDesk or VNC! `r`nFor more information check out the GitHub Wiki."
     }
 }
 
 function EnableAudio {
-ProgressWriter -Status "Enabling Audio" -PercentComplete $PercentComplete
+ProgressWriter -Status "Enabling Audio Services" -PercentComplete $PercentComplete
 # Enabling Audio on Windows Server
     Set-Service -Name "Audiosrv" -StartupType Automatic
     Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic 
     Start-Service -Name "Audiosrv" 
     Start-Service -Name "AudioEndpointBuilder"
-# Downloading and Installing VBCABLE driver
+# Downloading and installing VBCABLE Audio driver
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE'
+    # Adding VBCABLE certificate as trusted publisher to install VBCABLE silently 
     $DriverPath = Get-Item "C:\AzureTools\drivers\VBCABLE\"
-
     $CertStore = Get-Item "cert:\LocalMachine\TrustedPublisher"
     $CertStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-
     Get-ChildItem -Recurse -Path $DriverPath -Filter "*win7.cat" | ForEach-Object {
         $Cert = (Get-AuthenticodeSignature $_.FullName).SignerCertificate
         $CertStore.Add($Cert)
@@ -239,26 +234,22 @@ IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -Pat
 
 function SetWindowsSettings {
 ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComplete
-# Disables Server Manager opening on Startup
+# Disabling Server Manager opening on Startup
     Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask
-
-# Enable Dark Mode [Server 2019 only]
+# Enabling Dark Mode [Server 2019 only]
     if ($osType.Caption -like "*Windows Server 2019*") {
         if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize') -eq $true) {} Else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes' -Name Personalize}
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name AppsUseLightTheme -Value 0}
-
-# Disable CharmsUI [Server 2012 R2 only]
+# Disabling Charms Bar [Server 2012 R2 only]
     if ($osType.Caption -like "*Windows Server 2012 R2*") {
         if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\' -Name EdgeUi}
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTLCorner -Value 1
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTRCorner -Value 1
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1
-    }
-# Disable "Shutdown Event Tracker"
+        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1}
+# Disabling "Shutdown Event Tracker"
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force}
     Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 -ErrorAction SilentlyContinue
-
-# Disable Windows Update
+# Disabling Windows Update
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate}
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name AU}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"}
@@ -267,31 +258,56 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUSatusServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'AUOptions') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'UseWUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1}
-
-# Change "Performance for Applications"
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control' -value 'PriorityControl') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control" -Name "PriorityControl" -Value 00000026 -PropertyType DWORD}
-
+# Adjusting Processor Scheduling to "Performance for Applications"
+    if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl') -eq $true) {} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026 -PropertyType DWORD}
+    Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026
 # Disabling Aero Shake
-    if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
+    if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
     Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1
-# Set automatic Time and Timezone
+# Changing DEP to only apply for critical Windows files
+    Start-Process -FilePath "C:\Windows\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait
+# Disabling SEHOP
+    if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force}
+    New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value 1 -PropertyType DWORD
+# Enabling Automatic Time and Timezone
     Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name tzautoupdate | Out-Null}
     Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name Start -Value 00000003
-
-# Disable "New network window"
+# Disabling "New network window"
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network' -Value NewNetworkWindowOff)-eq $true) {} Else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff"}
-
-# Disable logout and lock user from start menu
+# Disabling logout and lock user from the Start Menu
     Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name StartMenuLogOff -Value 1
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System') -eq $true) {} Else {New-Item -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name System}
     if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Value DisableLockWorkstation) -eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 } Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1}
-
-# Disable "Recent start menu" items
+# Disabling "Recent Start Menu" items
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer}
     new-itemproperty -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -name "HideRecentlyAddedApps" -Value 1
-# Set Autologon
+# Enabling "Show hidden files"
+    if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion' -Name Explorer}
+    if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name Advanced}
+    New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'Hidden' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+# Call "RestorePhotoViewer" function when OS
+if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
+    RestorePhotoViewer | Out-Null
+}
+# Disabling "Hide file extention"
+    New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0 -PropertyType DWord
+# Adding "Control Panal" Icon on the Desktop
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {  New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {  New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
+    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+# Adding "This PC" Icon on the Desktop
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {  New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {  New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
+    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+# Change Wallpaper  
+    (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "C:\Windows\Web\Wallpaper\AzureWallpaper.png")
+    Set-Wallpaper "C:\Windows\Web\Wallpaper\AzureWallpaper.png"
+# Enabling Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
+    ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
     SetSecureAutoLogon `
         -Username $env:USERNAME `
         -Password (Read-Host -AsSecureString)
@@ -537,8 +553,7 @@ process {
 
 			# Store the autologon registry settings.
 		Set-ItemProperty -Path $WinlogonPath -Name AutoAdminLogon -Value $Enable -Force
-
-		Set-ItemProperty -Path $WinlogonPath -Name DefaultUserName -Value $Username -Force
+        Set-ItemProperty -Path $WinlogonPath -Name DefaultUserName -Value $Username -Force
 		Set-ItemProperty -Path $WinlogonPath -Name DefaultDomainName -Value $Domain -Force
 
 		if ($AutoLogonCount) {
@@ -612,42 +627,43 @@ process {
 
 function AddNewDisk {
     ProgressWriter -Status "Scanning for new disks" -PercentComplete $PercentComplete
-    # Scanning for disks not initialized 
+    # Scanning for not initialized disks
     $DISK = Get-Disk | Where-Object PartitionStyle -Eq "RAW"
     IF (!$DISK) {
-    # Output warning when no disk is found
-    Write-Warning 'No disk found, skipping configuration of disk for saving games'} else {
-    # When Disk is found
-    # Change registry key for prevent autostart of explorer
+    # Warning when no disk is found
+    Write-Warning 'No disk found, skipping configuration of disk for saving games and software'} else {
+    ProgressWriter -Status "Adding new disk and formatting it" -PercentComplete $PercentComplete
+    # If any non initialized disk was found
+    # Changing registry key to prevent autostart of Windows Shell
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 0
-    # Killing explorer process as a WAR for not output format wizard
+    # Killing Shell as a WAR for not outputting Windows "format wizard"
     Stop-Process -Name explorer* -Force
-    # Create Disk with "SoftwareDisk" as name mounted as "A:" 
+    # Creating Disk with "SoftwareDisk" as name" 
     Get-Disk | Where-Object PartitionStyle -Eq "RAW" | Initialize-Disk -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel "SoftwareDisk" -Confirm:$false
-    # Rollback registry key
+    # Rolling back registry key
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 1
-    # Restart Explorer
+    # Restarting Shell
     Start-Process "C:\Windows\System32\userinit.exe"
     }
 }
 
 function DisableVGA {
-ProgressWriter -Status "Disable non-NVIDIA gpu's" -PercentComplete $PercentComplete
-# Disable non-NVIDIA GPU's
+ProgressWriter -Status "Disabling non-NVIDIA GPUs" -PercentComplete $PercentComplete
+# Disabling non-NVIDIA GPUs
     if($osType.Caption -like "*Windows Server 2012 R2*") {
-        # This command get executed when OS is Server 2012
+        # This command gets executed when OS is Windows Server 2012 R2
         Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
     } else {
-        # This command get executed when OS is Server 2016/2019
+        # This command gets executed when OS is Windows Server 2016 or 2019
         Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false
     }
 }
 
 function DisableFloppyAndCDROM {
-    ProgressWriter -Status "Disable useless hardware" -PercentComplete $PercentComplete
-    # Disable Floppy Disk drive
+    ProgressWriter -Status "Disabling useless hardware" -PercentComplete $PercentComplete
+    # Disabling Floppy Disk drive
         Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow
-    # Disable CDROM drive
+    # Disabling CDROM drive
         Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow
 }
 
@@ -655,7 +671,7 @@ Function ProgressWriter {
     param (
     [int]$percentcomplete,
     [string]$status
-    )Write-Progress -Activity "Azure VM will be prepared for CloudGaming" -Status $status -PercentComplete $PercentComplete}
+    )Write-Progress -Activity "Azure VM will be prepared for Cloud Gaming" -Status $status -PercentComplete $PercentComplete}
 
 function BlockHost {
     $BlockedHosts = @("telemetry.gfe.nvidia.com", "ls.dtrace.nvidia.com", "ota.nvidia.com", "ota-downloads.nvidia.com", "rds-assets.nvidia.com", "nvidia.tt.omtrdc.net", "api.commune.ly", "namso-gen.com", "nulled.to")
@@ -676,16 +692,16 @@ function BlockHost {
 }
 
 function DownloadNVIDIAdrivers {
-    ProgressWriter -Status "Downloading NVIDIA drivers" -PercentComplete $PercentComplete
-    # Downloading NVIDIA drivers
+    ProgressWriter -Status "Downloading GPU drivers" -PercentComplete $PercentComplete
+    # Downloading GPU drivers
     if($osType.Caption -like "*Windows Server 2012 R2*") {
-        # This command get executed when OS is Server 2012
+        # This command gets executed when OS is Windows Server 2012
         Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green    
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
     } else {
-        # This command get executed when OS is Server 2016/2019
+        # This command gets executed when OS is Windows Server 2016 or 2019
         Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
@@ -694,25 +710,25 @@ function DownloadNVIDIAdrivers {
 }
 
 function InstallDrivers {
-    # Installing NVIDIA drivers
+    # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
     Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean" -NoNewWindow -Wait
-    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\Scripts\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
-    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "StartupScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
     Start-Sleep -Seconds 5
     Restart-Computer -Force
-    Start-Sleep 3
-    Write-Warning 'Auto-Restart not successful, please restart Windows manually'
+    Start-Sleep -Seconds 3
+    Write-Warning 'Restarting did not work, please restart Windows manually'
     PAUSE
     EXIT
 }
 
 function GameStreamAfterReboot {
-    Unregister-ScheduledTask -TaskName "ScriptAfterReboot" -Confirm:$false 
-    ProgressWriter -Status "Patching GameStream to work with this GPU" -PercentComplete $PercentComplete
+    Unregister-ScheduledTask -TaskName "StartupScriptAfterReboot" -Confirm:$false 
+    ProgressWriter -Status "Patching GameStream to work with NV6's GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
@@ -733,11 +749,101 @@ function GameStreamAfterReboot {
 }
 
 function StartupScript {
-    $script = "-Command `"Set-ExecutionPolicy Unrestricted; & 'C:\AzureTools\Tools\startup.ps1'`"";
+    # Adding Task to start PowerShell script everytime at logon
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\Tools\startup.ps1'`"";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
-    $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
+    $trigger = New-ScheduledTaskTrigger -AtLogon
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
     Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
+}
+
+function RestorePhotoViewer {
+    # Restore Windows Photo Viewer
+    ProgressWriter -Status "Restoring Windows Photo viewer..." -PercentComplete $PercentComplete
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\DefaultIcon") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\DefaultIcon" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\command") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\command" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\DropTarget") -ne $true) {  New-Item "HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\DropTarget" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities") -ne $true) {  New-Item "HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities" -force -ea SilentlyContinue }
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations") -ne $true) {  New-Item "HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations" -force -ea SilentlyContinue }
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open' -Name 'MuiVerb' -Value '@photoviewer.dll,-3043' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\Applications\photoviewer.dll\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap' -Name 'FriendlyTypeName' -Value '@%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll,-3056' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\imageres.dll,-70' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Bitmap\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF' -Name 'EditFlags' -Value 65536 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF' -Name 'FriendlyTypeName' -Value '@%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll,-3055' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\imageres.dll,-72' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open' -Name 'MuiVerb' -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3043' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.JFIF\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg' -Name 'EditFlags' -Value 65536 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg' -Name 'FriendlyTypeName' -Value '@%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll,-3055' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\imageres.dll,-72' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open' -Name 'MuiVerb' -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3043' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Jpeg\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif' -Name 'FriendlyTypeName' -Value '@%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll,-3057' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\imageres.dll,-83' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Gif\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png' -Name 'FriendlyTypeName' -Value '@%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll,-3057' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\imageres.dll,-71' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Png\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp' -Name 'EditFlags' -Value 65536 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp' -Name 'ImageOptionFlags' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\DefaultIcon' -Name '(default)' -Value '%SystemRoot%\System32\wmphoto.dll,-400' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open' -Name 'MuiVerb' -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3043' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\command' -Name '(default)' -Value '%SystemRoot%\System32\rundll32.exe "%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll", ImageView_Fullscreen %1' -PropertyType ExpandString -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\PhotoViewer.FileAssoc.Wdp\shell\open\DropTarget' -Name 'Clsid' -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities' -Name 'ApplicationDescription' -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3069' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities' -Name 'ApplicationName' -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3009' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.jpg' -Value 'PhotoViewer.FileAssoc.Jpeg' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.wdp' -Value 'PhotoViewer.FileAssoc.Wdp' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.jfif' -Value 'PhotoViewer.FileAssoc.JFIF' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.dib' -Value 'PhotoViewer.FileAssoc.Bitmap' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.png' -Value 'PhotoViewer.FileAssoc.Png' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.jxr' -Value 'PhotoViewer.FileAssoc.Wdp' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.bmp' -Value 'PhotoViewer.FileAssoc.Bitmap' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.jpe' -Value 'PhotoViewer.FileAssoc.Jpeg' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.jpeg' -Value 'PhotoViewer.FileAssoc.Jpeg' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.gif' -Value 'PhotoViewer.FileAssoc.Gif' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.tif' -Value 'PhotoViewer.FileAssoc.Tiff' -PropertyType String -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations' -Name '.tiff' -Value 'PhotoViewer.FileAssoc.Tiff' -PropertyType String -Force -ea SilentlyContinue
 }
 
 function InstallGFE {
@@ -757,20 +863,44 @@ function InstallGFE {
     Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList '/s /noreboot' -NoNewWindow -Wait
 }
 
+function Set-Wallpaper {
+        param (
+        $WallpaperPath
+        )
+
+    $setwallpapersrc = @"
+    using System.Runtime.InteropServices;
+    public class wallpaper
+    {
+    public const int SetDesktopWallpaper = 20;
+    public const int UpdateIniFile = 0x01;
+    public const int SendWinIniChange = 0x02;
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern int SystemParametersInfo (int uAction, int uParam, string lpvParam, int fuWinIni);
+    public static void SetWallpaper ( string path )
+    {
+    SystemParametersInfo( SetDesktopWallpaper, 0, path, UpdateIniFile | SendWinIniChange );
+    }
+    }
+"@
+Add-Type -TypeDefinition $setwallpapersrc
+[wallpaper]::SetWallpaper($WallpaperPath) 
+}
+
 Function XboxController {
-    ProgressWriter -Status "Downloading controller drivers" -PercentComplete $PercentComplete
+    ProgressWriter -Status "Downloading Xbox 360 controller drivers" -PercentComplete $PercentComplete
     # Downloading basic Xbox 360 controller driver
     (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
     if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
     cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng"
     cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"'
-    # Downloading ViGEm
+    # Downloading ViGEmBus Controller Driver
     if($osType.Caption -like "*Windows Server 2012*") {
-        # This command get executed when OS is Server 2012
+        # This command gets executed if OS is Windows Server 2012
         (New-Object System.Net.WebClient).DownloadFile("https://github.com/ViGEm/ViGEmBus/releases/download/setup-v1.16.116/ViGEmBus_Setup_1.16.116.exe", "C:\AzureTools\ViGEmBus_Setup_win2012.exe")
         Start-Process "C:\AzureTools\ViGEmBus_Setup_win2012.exe" -ArgumentList '/qn' -Wait -NoNewWindow
     } else {
-        # This command get executed when OS is Server 2016/2019
+        # This command gets executed if OS is Windows Server 2016 or 2019
         $vigembus = (Invoke-WebRequest -Uri https://github.com/ViGEm/ViGEmBus/releases -UseBasicParsing).links.outerhtml -like "*ViGEmBusSetup_x64.msi*"
         (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AzureTools\ViGEmBusSetup_x64.msi')
         Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow
@@ -780,15 +910,13 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.5]"
-
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
-Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.5]
-(c) 2021 SoftwareRat. All rights reserved.
-'
+Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
+Azure Automation Gaming Script [Version 0.9.6]
+(c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
     $ScripttaskList = (
@@ -832,9 +960,13 @@ foreach ($func in $ScripttaskListAfterReboot) {
 
 Clear-Host
 Stop-Transcript
-Write-Host -Object 'This script finished all tasks'
-Write-Host -Object 'When you have bugs or feedback suggestions,'
-Write-Host -Object 'go to the GitHub repository of this project'
+Write-Host -Object 'Script Finished!'
+Write-Host -Object 'If you have bugs or feedback suggestions,'
+Write-Host -Object 'go to the GitHub repository of this project.'
+Write-Host -Object 'Restarting in 5 seconds...'
 Start-Sleep -Seconds 5
 Restart-Computer -Force
+Start-Sleep -Seconds 3
+Write-Warning 'Auto-Restart failed, please restart Windows manually'
+PAUSE
 EXIT
