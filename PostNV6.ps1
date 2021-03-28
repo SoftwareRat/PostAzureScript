@@ -184,7 +184,11 @@ function InstallCommonSoftware {
     # Downloading and installing required DirectX librarys
     ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
     Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
+    if($osType.Caption -like "*Windows Server 2012 R2*") {
+    # Chosolatey package of DirectX-SDK is currently broken, install it manually
+    #Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
+    (New-Object System.Net.WebClient).DownloadFile("https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe", "C:\AzureTools\DXSDK_Jun10.exe")
+    Start-Process -FilePath 'C:\AzureTools\DXSDK_Jun10.exe' -ArgumentList '/U' -NoNewWindow -Wait}
 }
 
 <# Currently broken, will be fixed soon
@@ -219,6 +223,16 @@ ProgressWriter -Status "Enabling Audio" -PercentComplete $PercentComplete
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE'
+    $DriverPath = Get-Item "C:\AzureTools\drivers\VBCABLE\"
+
+    $CertStore = Get-Item "cert:\LocalMachine\TrustedPublisher"
+    $CertStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+
+    Get-ChildItem -Recurse -Path $DriverPath -Filter "*win7.cat" | ForEach-Object {
+        $Cert = (Get-AuthenticodeSignature $_.FullName).SignerCertificate
+        $CertStore.Add($Cert)
+    }
+    $CertStore.Close()
     Start-Process -FilePath "C:\AzureTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait
     }
 }
@@ -259,8 +273,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
 
 # Disabling Aero Shake
     if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
-    Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1} else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1 -PropertyType DWORD
-
+    Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1
 # Set automatic Time and Timezone
     Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name tzautoupdate | Out-Null}
@@ -276,8 +289,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
 
 # Disable "Recent start menu" items
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer}
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value HideRecentlyAddedApps) -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer}
-
+    new-itemproperty -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -name "HideRecentlyAddedApps" -Value 1
 # Set Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
     SetSecureAutoLogon `
@@ -706,6 +718,8 @@ function GameStreamAfterReboot {
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
     New-NetFirewallRule -DisplayName "NVIDIA GameStream TCP" -Direction Inbound -LocalPort 47984,47989,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol TCP -Action Allow
     New-NetFirewallRule -DisplayName "NVIDIA GameStream UDP" -Direction Inbound -LocalPort 47998,47999,48000,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol UDP -Action Allow
+    Write-Host "Enabling NVIDIA FrameBufferCopy..."
+    Start-Process -FilePath "C:\AzureTools\NvFBCEnable.exe" -ArgumentList "-enable" -NoNewWindow -Wait
     Write-Host "Patching GFE to allow the GPU's Device ID..."
     Stop-Service -Name NvContainerLocalSystem
     $TargetDevice = (Get-WmiObject Win32_VideoController | Select-Object PNPDeviceID,Name | Where-Object Name -match "nvidia" | Select-Object -First 1) 
@@ -766,13 +780,13 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.2.1]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.5]"
 
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkBlue -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.2.1]
+Azure Automation Gaming Script [Version 0.9.5]
 (c) 2021 SoftwareRat. All rights reserved.
 '
 
