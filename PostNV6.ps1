@@ -791,15 +791,6 @@ function StartupScript {
     Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
 }
 
-function FistStartupScript {
-    # Adding Task to start PowerShell script everytime at logon
-    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\startup.ps1'`"";
-    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
-    $trigger = New-ScheduledTaskTrigger -AtLogon
-    $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
-    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
-}
-
 function RestorePhotoViewer {
     # Restore Windows Photo Viewer
     ProgressWriter -Status "Restoring Windows Photo viewer..." -PercentComplete $PercentComplete
@@ -953,12 +944,12 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6.5]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6.5.1]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.6.5]
+Azure Automation Gaming Script [Version 0.9.6.5.1]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
