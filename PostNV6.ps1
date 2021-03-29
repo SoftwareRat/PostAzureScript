@@ -34,7 +34,9 @@ function Test-RegistryValue {
 
 function AdminCheck {
     If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        # Exiting script when it gets executed without administrator privileges
+        # Terminating script when it gets executed without administrator privileges
+        Write-Warning 'RDP detected, this script will terminate itself'
+        PAUSE
         throw "The script got executed without Administrator privileges, please execute it as Administrator" 
     }
 }
@@ -91,11 +93,17 @@ function ManageWindowsFeatures {
     # Installing special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # Installing qWave
-            Write-Output -InputObject 'Installing qWa<ve...'
+            Write-Output -InputObject 'Installing qWave...'
             Install-WindowsFeature -Name 'qWave'
         # Installing Desktop Experience for more PC features
-            Write-Output -InputObject 'Install Desktop Experience...'
+            Write-Output -InputObject 'Installling Desktop Experience...'
             Install-WindowsFeature -Name 'Desktop-Experience'
+        # Installing Group Policy Management for better administration
+            Write-Output -InputObject 'Installling Group Policy Management...'
+            Get-WindowsFeature -Name "*GPMC*" | Install-WindowsFeature
+        # Installing BITS for some network tasks
+            Write-Output -InputObject 'Installling Background Intelligent Transfer Service...'
+            Install-WindowsFeature -Name "BITS"
         }
     
     # Uninstalling Windows Defender on Windows Server 2016 and 2019 for saving resources
@@ -109,7 +117,11 @@ function ManageWindowsFeatures {
     # Enable Wireless LAN Service because some software need it
         Write-Output -InputObject 'Install Wireless Networking...'
         Install-WindowsFeature -Name 'Wireless-Networking'
-    }
+    # Installing Windows Update module for PowerShell
+    # Source: https://www.powershellgallery.com/packages/PSWindowsUpdate/
+        Write-Output -InputObject 'Installing Windows Update module...'
+        Install-Module -Name PSWindowsUpdate -Scope AllUsers
+}
 
 function GPUDriverUpdate {
     if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
@@ -137,27 +149,29 @@ function InstallChocolatey {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-WebRequest 'https://chocolatey.org/install.ps1' -UseBasicParsing | Invoke-Expression
     # Enable executing PowerShell scripts silently without to confirm
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait -NoNewWindow -WindowStyle Hidden
 }
 
 function InstallGameLaunchers {
 # Downloading and installing common game launchers 
     # Downloading and installing Steam
         Write-Host -Object 'Downloading and installing Steam'
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow
+        # Disable Steam Autostart
+        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'Steam' -Value ([byte[]](0x33,0x32,0xFF))
     # Downloading and installing Epic Games Launcher
         Write-Host -Object 'Downloading and installing Epic Games Launcher'
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow
     <# Adding this launchers as optional function soon 
     # Downloading and installing Origin
     Write-Host -Object 'Downloading and installing Origin'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
     # Downloading and installing Ubisoft Connect [Used to be known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
     # Downloading and installing GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
-    Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
     #>
 }
 
@@ -165,27 +179,42 @@ function InstallCommonSoftware {
 # Downloading and installing most common software
     # Downloading and installing 7-Zip
         ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow
-    # Downloading and installing Google Chrome
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow | Out-Null
+    # Downloading and installing Microsoft Edge
         ProgressWriter -Status "Installing Microsoft Edge" -PercentComplete $PercentComplete
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install microsoft-edge" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install microsoft-edge" -Wait -NoNewWindow | Out-Null
     # Downloading and installing VLC Media Player
         ProgressWriter -Status "Installing VLC Media Player" -PercentComplete $PercentComplete
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow | Out-Null
     # Downloading Microsoft Visual C++ Redist
         ProgressWriter -Status "Installing Microsoft Visual C++ Redist" -PercentComplete $PercentComplete
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow | Out-Null
     # Downloading and installing required DirectX libraries
         ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
-        Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow | Out-Null
+    # Downloading and installing ChocolateyGUI
+        ProgressWriter -Status "Installing ChocolateyGUI" -PercentComplete $PercentComplete
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ChocolateyGUI" -Wait -NoNewWindow | Out-Null
+        IF ((Test-Path -Path 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chocolatey GUI.lnk') -eq $true) {
+            Write-Host 'Copying ChocolateyGUI shortcut to public Desktop'
+            Copy-Item 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chocolatey GUI.lnk' 'C:\Users\Public\Desktop\Chocolatey GUI.lnk'} else {
+                Write-Host -Object 'No shortcut in ProgramData found, creating ChocolateyGUI shortcut manually'
+
+            }
+    # Downloading and installing Moonlight Internet Hosting Tool
+        $MIHTHTML = (Invoke-WebRequest -Uri "https://github.com/moonlight-stream/Internet-Hosting-Tool/releases" -UseBasicParsing).Links.Href -like "*InternetHostingToolSetup-*"
+        $MIHTDOWNLOAD = $MIHTHTML.split('(')[1].split(')')[0]
+        (New-Object System.Net.WebClient).DownloadFile($($MIHTDOWNLOAD), "C:\AzureTools\InternetHostingToolSetup.exe")
+        Start-Process -FilePath 'C:\AzureTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet /install /norestart' -Wait -NoNewWindow | Out-Null
+    
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Installing following features if OS is Windows Server 2012 R2
         # Downloading and installing Open Shell
             ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
-            Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow
-        # Downloading and installing DirectX SDK
+            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow | Out-Null
+        # Downloading and installing DirectX SDK (specify version as temp WAR for wrong hash)
             ProgressWriter -Status "Installing DirectX SDK" -PercentComplete $PercentComplete
-            Start-Process -FilePath "C:\ProgramData\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk" -Wait -NoNewWindow
+            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk --version 9.29.1962.01" -Wait -NoNewWindow | Out-Null
     }
 }
 <# Currently broken, will be fixed soon
@@ -247,9 +276,10 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTRCorner -Value 1
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1}
 # Disabling "Shutdown Event Tracker"
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force}
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 -ErrorAction SilentlyContinue
-# Disabling Windows Update
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force | Out-Null}
+    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 | Out-Null
+    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonUI -Value 0 | Out-Null
+<# Disabling Windows Update
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate}
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name AU}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"}
@@ -258,6 +288,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUSatusServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'AUOptions') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1}
     if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'UseWUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1}
+#>
 # Adjusting Processor Scheduling to "Performance for Applications"
     if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl') -eq $true) {} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026 -PropertyType DWORD}
     Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026
@@ -285,11 +316,9 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
 # Enabling "Show hidden files"
     if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion' -Name Explorer}
     if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name Advanced}
-    New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'Hidden' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue
-# Call "RestorePhotoViewer" function when OS
-if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
-    RestorePhotoViewer | Out-Null
-}
+    Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'Hidden' -Value 1 -Force -ea SilentlyContinue
+# Call "RestorePhotoViewer" function when OS is not Windows Server 2012 R2
+if(!($osType.Caption -like "*Windows Server 2012 R2*")) {RestorePhotoViewer | Out-Null}
 # Disabling "Hide file extention"
     New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0 -PropertyType DWord
 # Adding "Control Panal" Icon on the Desktop
@@ -305,15 +334,19 @@ if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
 # Change Wallpaper  
     (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "C:\Windows\Web\Wallpaper\AzureWallpaper.png")
     Set-Wallpaper "C:\Windows\Web\Wallpaper\AzureWallpaper.png"
+
+# Extract DirectX Archive to C:\Windows when OS is Server 2012 R2
+    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath 'C:\Windows' -Force}
+
 # Enabling Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
     ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
-    SetSecureAutoLogon `
+    Set-SecureAutoLogon `
         -Username $env:USERNAME `
         -Password (Read-Host -AsSecureString)
 }
 
-function SetSecureAutoLogon {
+function Set-SecureAutoLogon {
     [cmdletbinding()]
 param (
 	[Parameter(Mandatory=$true)] [ValidateNotNullOrEmpty()] [string]
@@ -712,22 +745,23 @@ function DownloadNVIDIAdrivers {
 function InstallDrivers {
     # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
-    Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean" -NoNewWindow -Wait
-    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\Scripts\PostNV6.ps1'`" -MoonlightAfterReboot";
+    Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
+    $GRIDERRORCODE = (Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean" -NoNewWindow -Wait -PassThru).ExitCode
+    if($GRIDERRORCODE -eq 0) {Write-Host -ForegroundColor Green -Object 'INSTALLED'} else {Write-Host -ForegroundColor Red -Object 'FAILED'}
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
-    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "StartupScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
-    Start-Sleep -Seconds 5
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ContinueAzureGamingScript" -Description "Continue Azure Gaming script after Windows reboot" | Out-Null
     Restart-Computer -Force
     Start-Sleep -Seconds 3
     Write-Warning 'Restarting did not work, please restart Windows manually'
     PAUSE
-    EXIT
+    [Environment]::Exit(1)
 }
 
 function GameStreamAfterReboot {
-    Unregister-ScheduledTask -TaskName "StartupScriptAfterReboot" -Confirm:$false 
+    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "StartupScriptAfterReboot" }) {Unregister-ScheduledTask -TaskName "StartupScriptAfterReboot" -Confirm:$false }
     ProgressWriter -Status "Patching GameStream to work with NV6's GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
@@ -750,7 +784,16 @@ function GameStreamAfterReboot {
 
 function StartupScript {
     # Adding Task to start PowerShell script everytime at logon
-    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\Tools\startup.ps1'`"";
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\startup.ps1'`"";
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
+    $trigger = New-ScheduledTaskTrigger -AtLogon
+    $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ScriptAfterReboot" -Description "This script getting automaticly executed after reboot"
+}
+
+function FistStartupScript {
+    # Adding Task to start PowerShell script everytime at logon
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\startup.ps1'`"";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
@@ -850,7 +893,7 @@ function InstallGFE {
     $IP = (Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPAddress")
     IF ($IP.countrycode -eq "US" -or $IP.countrycode -eq "SG") {
         Set-Variable -Name 'CountryCode' -Value 'US'
-    } elseif ($IP.countrycode -eq "NL" -or $IP.countrycode -eq "UK") {
+    } elseif ($IP.countrycode -eq "NL" -or $IP.countrycode -eq "GB" -or $IP.countrycode -eq "IE") {
         Set-Variable -Name 'CountryCode' -Value 'UK'
     } elseif ($IP.countrycode -eq "JP") {
         Set-Variable -Name 'CountryCode' -Value 'JP'
@@ -910,12 +953,12 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6.5]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.6]
+Azure Automation Gaming Script [Version 0.9.6.5]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
@@ -960,7 +1003,7 @@ foreach ($func in $ScripttaskListAfterReboot) {
 
 Clear-Host
 Stop-Transcript
-Write-Host -Object 'Script Finished!'
+Write-Host -Object 'Script finished!'
 Write-Host -Object 'If you have bugs or feedback suggestions,'
 Write-Host -Object 'go to the GitHub repository of this project.'
 Write-Host -Object 'Restarting in 5 seconds...'
@@ -969,4 +1012,4 @@ Restart-Computer -Force
 Start-Sleep -Seconds 3
 Write-Warning 'Auto-Restart failed, please restart Windows manually'
 PAUSE
-EXIT
+[Environment]::Exit(0)
