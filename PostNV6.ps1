@@ -118,10 +118,10 @@ function ManageWindowsFeatures {
     # Installing Windows Update module for PowerShell
     # Source: https://www.powershellgallery.com/packages/PSWindowsUpdate/
         Write-Output -InputObject 'Installing Windows Update module...'
-        # Adding PSGallery to trusted Repositorys
-        Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
         # Installing NuGet
         Install-PackageProvider -Name NuGet -Scope AllUsers -Force
+        # Adding PSGallery to trusted Repositorys
+        Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
         # Installing base Windows Update module
         Install-Module -Name PSWindowsUpdate -Scope AllUsers -Force
 }
@@ -255,7 +255,7 @@ ProgressWriter -Status "Enabling Audio Services" -PercentComplete $PercentComple
     Start-Service -Name "Audiosrv" 
     Start-Service -Name "AudioEndpointBuilder"
 # Downloading and installing VBCABLE Audio driver
-IF ((Test-Path -Path '$env:SystemRoot\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
+IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE'
     # Adding VBCABLE certificate as trusted publisher to install VBCABLE silently 
@@ -296,7 +296,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1'} Else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1' -PropertyType 'DWord'}
 # Changing DEP to only apply for critical Windows files
-    Start-Process -FilePath "$env:SystemRoot\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait
+    Start-Process -FilePath "C:\Windows\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait
 # Disabling SEHOP
     if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force}
     if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Value 'DisableExceptionChainValidation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value '1'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableExceptionChainValidation' -Value '1' -PropertyType 'DWord'}
@@ -336,7 +336,7 @@ if(!($osType.Caption -like "*Windows Server 2012 R2*")) {RestorePhotoViewer | Ou
     (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png")
     Set-Wallpaper "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png"
 # Extract DirectX Archive to C:\Windows when OS is Server 2012 R2
-    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath '$env:SystemRoot' -Force}
+    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath 'C:\Windows' -Force}
 # Enabling Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
     ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
@@ -675,7 +675,7 @@ function AddNewDisk {
     # Rolling back registry key
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 1
     # Restarting Shell
-    Start-Process "$env:SystemRoot\System32\userinit.exe"
+    Start-Process "C:\Windows\System32\userinit.exe"
     }
 }
 
@@ -744,8 +744,7 @@ function InstallDrivers {
     # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
     Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
-    $GRIDERRORCODE = (Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait -PassThru).ExitCode
-    if($GRIDERRORCODE -eq 0) {Write-Host -ForegroundColor Green -Object 'INSTALLED'} else {Write-Host -ForegroundColor Red -Object 'FAILED'}
+    Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait
     $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
@@ -760,8 +759,8 @@ function InstallDrivers {
 }
 
 function GameStreamAfterReboot {
-    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "StartupScriptAfterReboot" }) {Unregister-ScheduledTask -TaskName "StartupScriptAfterReboot" -Confirm:$false }
-    ProgressWriter -Status "Patching GameStream to work with NV6's GPU" -PercentComplete $PercentComplete
+    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAzureGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAzureGamingScript" -Confirm:$false }
+    ProgressWriter -Status "Patching GameStream to work with unsupported NVIDIA GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
@@ -881,19 +880,20 @@ function RestorePhotoViewer {
 
 function InstallGFE {
     $IP = (Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPAddress")
-    IF ($IP.countrycode -eq "US" -or $IP.countrycode -eq "SG") {
+    IF ($IP.countryCode -eq "US" -or $IP.countryCode -eq "SG") {
         Set-Variable -Name 'CountryCode' -Value 'US'
-    } elseif ($IP.countrycode -eq "NL" -or $IP.countrycode -eq "GB" -or $IP.countrycode -eq "IE") {
+    } elseif ($IP.countryCode -eq "NL" -or $IP.countryCode -eq "GB" -or $IP.countryCode -eq "IE") {
         Set-Variable -Name 'CountryCode' -Value 'UK'
-    } elseif ($IP.countrycode -eq "JP") {
+    } elseif ($IP.countryCode -eq "JP") {
         Set-Variable -Name 'CountryCode' -Value 'JP'
-    } elseif ($IP.countrycode -eq "IN") {
+    } elseif ($IP.countryCode -eq "IN") {
         Set-Variable -Name 'CountryCode' -Value 'IN'
     } else {Set-Variable -Name 'CountryCode' -Value 'US'}
     Write-Host -Object ('Downloading GFE with {0} Mirror' -f $CountryCode)
     (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForceExperienceSetup.exe")
     Write-Host -Object 'Installing GFE...'
-    Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList '/s','/noreboot' -NoNewWindow -Wait
+    Start-Sleep -Seconds '3'
+    Start-Process -FilePath 'C:\AzureTools\GeForceExperienceSetup.exe' -ArgumentList '/s','/noreboot' -Wait
 }
 
 function Set-Wallpaper {
@@ -925,7 +925,7 @@ Function XboxController {
     # Downloading basic Xbox 360 controller driver
     (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
     if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
-    cmd.exe /c "$env:SystemRoot\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng"
+    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng"
     cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"'
     # Downloading ViGEmBus Controller Driver
     if($osType.Caption -like "*Windows Server 2012*") {
@@ -936,21 +936,22 @@ Function XboxController {
         # This command gets executed if OS is Windows Server 2016 or 2019
         $vigembus = (Invoke-WebRequest -Uri https://github.com/ViGEm/ViGEmBus/releases -UseBasicParsing).links.outerhtml -like "*ViGEmBusSetup_x64.msi*"
         (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AzureTools\ViGEmBusSetup_x64.msi')
-        Start-Process '$env:SystemRoot\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow
+        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow
     }
 }
 
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.7]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.7.5]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
 $WScriptShell = New-Object -ComObject WScript.Shell
 
+Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.7]
+Azure Automation Gaming Script [Version 0.9.7.5]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
