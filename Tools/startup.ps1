@@ -24,6 +24,8 @@ $GameSeatDisplayError = (Start-Process -FilePath 'C:\AzureTools\GameSeatDisplay.
 $CheckForModule = (Get-Module -Name PSWindowsUpdate).Name
 IF (!($CheckForModule -eq "PSWindowsUpdate")) {
     Write-Host -ForegroundColor Red -Object 'Windows Update module not installed, installing it again...'
+    Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+    Install-PackageProvider -Name NuGet -Scope AllUsers -Force
     Install-Module -Name PSWindowsUpdate -Scope AllUsers -Force
 }
 # Checking for Windows updates

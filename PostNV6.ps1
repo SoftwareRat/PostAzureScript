@@ -24,7 +24,7 @@ function Test-RegistryValue {
     )
 
     try {
-        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction SilentlyContinue
+        Get-ItemProperty -Path $Path | Select-Object -ExpandProperty $Value -ErrorAction Stop | Out-Null
         return $true
         }
     catch {
@@ -34,9 +34,7 @@ function Test-RegistryValue {
 
 function AdminCheck {
     If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        # Terminating script when it gets executed without administrator privileges
-        Write-Warning 'RDP detected, this script will terminate itself'
-        PAUSE
+        # Terminating script when it gets executed without administrator privileges 
         throw "The script got executed without Administrator privileges, please execute it as Administrator" 
     }
 }
@@ -120,7 +118,12 @@ function ManageWindowsFeatures {
     # Installing Windows Update module for PowerShell
     # Source: https://www.powershellgallery.com/packages/PSWindowsUpdate/
         Write-Output -InputObject 'Installing Windows Update module...'
-        Install-Module -Name PSWindowsUpdate -Scope AllUsers
+        # Adding PSGallery to trusted Repositorys
+        Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+        # Installing NuGet
+        Install-PackageProvider -Name NuGet -Scope AllUsers -Force
+        # Installing base Windows Update module
+        Install-Module -Name PSWindowsUpdate -Scope AllUsers -Force
 }
 
 function GPUDriverUpdate {
@@ -130,15 +133,14 @@ function GPUDriverUpdate {
         (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
         Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\'
         Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
-        $Shell = New-Object -ComObject ("WScript.Shell")
-        $ShortCut = $Shell.CreateShortcut("$env:USERPROFILE\Desktop\GPU Update Tool.lnk")
-        $ShortCut.TargetPath="C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-        $ShortCut.Arguments='-ExecutionPolicy Bypass -File "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"'
-        $ShortCut.WorkingDirectory = "C:\AzureTools\drivers\UpdateTool\";
-        $ShortCut.IconLocation = "C:\AzureTools\drivers\UpdateTool\Additional Files\UpdateTool.ico, 0";
-        $ShortCut.WindowStyle = 0;
-        $ShortCut.Description = "Updating your GPU drivers";
-        $ShortCut.Save()
+        $GPUshortcut = $WScriptShell.CreateShortcut("$env:USERPROFILE\Desktop\GPU Update Tool.lnk")
+        $GPUshortcut.TargetPath="$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+        $GPUshortcut.Arguments='-ExecutionPolicy Bypass -File "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"'
+        $GPUshortcut.WorkingDirectory = "C:\AzureTools\drivers\UpdateTool\";
+        $GPUshortcut.IconLocation = "C:\AzureTools\drivers\UpdateTool\Additional Files\UpdateTool.ico, 0";
+        $GPUshortcut.WindowStyle = 0;
+        $GPUshortcut.Description = "Updating your GPU drivers";
+        $GPUshortcut.Save()
     }
 }
     
@@ -149,7 +151,7 @@ function InstallChocolatey {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-WebRequest 'https://chocolatey.org/install.ps1' -UseBasicParsing | Invoke-Expression
     # Enable executing PowerShell scripts silently without to confirm
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait -NoNewWindow -WindowStyle Hidden
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "feature enable -n allowGlobalConfirmation" -Wait -NoNewWindow
 }
 
 function InstallGameLaunchers {
@@ -199,13 +201,19 @@ function InstallCommonSoftware {
             Write-Host 'Copying ChocolateyGUI shortcut to public Desktop'
             Copy-Item 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chocolatey GUI.lnk' 'C:\Users\Public\Desktop\Chocolatey GUI.lnk'} else {
                 Write-Host -Object 'No shortcut in ProgramData found, creating ChocolateyGUI shortcut manually'
-
+                $ChocoShortcut = $WScriptShell.CreateShortcut("$env:USERPROFILE\Desktop\Chocolatey GUI.lnk")
+                $ChocoShortcut.TargetPath="C:\Program Files (x86)\Chocolatey GUI\ChocolateyGui.exe"
+                $ChocoShortcut.WorkingDirectory = "C:\Program Files (x86)\Chocolatey GUI\";
+                $ChocoShortcut.IconLocation = "$env:SystemRoot\Installer\{A910A3D5-1BF4-40FA-9A2C-CD0FF79C9F0A}\icon.ico, 0";
+                $ChocoShortcut.WindowStyle = 0;
+                $ChocoShortcut.Description = "GUI for Chocolatey";
+                $ChocoShortcut.Save()
             }
     # Downloading and installing Moonlight Internet Hosting Tool
         $MIHTHTML = (Invoke-WebRequest -Uri "https://github.com/moonlight-stream/Internet-Hosting-Tool/releases" -UseBasicParsing).Links.Href -like "*InternetHostingToolSetup-*"
         $MIHTDOWNLOAD = $MIHTHTML.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($MIHTDOWNLOAD), "C:\AzureTools\InternetHostingToolSetup.exe")
-        Start-Process -FilePath 'C:\AzureTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet /install /norestart' -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath 'C:\AzureTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet','/install','/norestart' -Wait -NoNewWindow | Out-Null
     
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Installing following features if OS is Windows Server 2012 R2
@@ -233,6 +241,8 @@ $global:streamingsolutionselection = StreamingSolutionSelection
 
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
+        Write-Warning 'RDP detected, this script will terminate itself'
+        PAUSE
         throw "[rdp_session_detected] RDP session detected, please use alternatives like AnyDesk or VNC! `r`nFor more information check out the GitHub Wiki."
     }
 }
@@ -245,7 +255,7 @@ ProgressWriter -Status "Enabling Audio Services" -PercentComplete $PercentComple
     Start-Service -Name "Audiosrv" 
     Start-Service -Name "AudioEndpointBuilder"
 # Downloading and installing VBCABLE Audio driver
-IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
+IF ((Test-Path -Path '$env:SystemRoot\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
     Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE'
     # Adding VBCABLE certificate as trusted publisher to install VBCABLE silently 
@@ -268,76 +278,65 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
 # Enabling Dark Mode [Server 2019 only]
     if ($osType.Caption -like "*Windows Server 2019*") {
         if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize') -eq $true) {} Else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes' -Name Personalize}
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name AppsUseLightTheme -Value 0}
+        if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Value 'AppsUseLightTheme') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value '0'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue}}
 # Disabling Charms Bar [Server 2012 R2 only]
     if ($osType.Caption -like "*Windows Server 2012 R2*") {
         if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\' -Name EdgeUi}
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTLCorner -Value 1
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableTRCorner -Value 1
-        Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name DisableCharmsHint -Value 1}
+        if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Value 'DisableTLCorner') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTLCorner" -Value '1'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTLCorner" -Value '1' -PropertyType 'DWord' -Force -ea SilentlyContinue}
+        if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Value 'DisableTRCorner') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTRCorner" -Value '1'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTRCorner" -Value '1' -PropertyType 'DWord' -Force -ea SilentlyContinue}
+        if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Value 'DisableCharmsHint') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableCharmsHint" -Value '1'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableCharmsHint" -Value '1' -PropertyType 'DWord' -Force -ea SilentlyContinue}
+        }
 # Disabling "Shutdown Event Tracker"
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT' -Name Reliability -Force | Out-Null}
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonOn -Value 0 | Out-Null
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name ShutdownReasonUI -Value 0 | Out-Null
-<# Disabling Windows Update
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name WindowsUpdate}
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU') -eq $true) {} else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name AU}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'DoNotConnectToWindowsUpdateInternetLocations') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "DoNotConnectToWindowsUpdateInternetLocations" -Value "1"}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'UpdateServiceURLAlternative') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "UpdateServiceURLAlternative" -Value "http://intentionally.disabled"}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUServer" -Value "http://intentionally.disabled"}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -value 'WUSatusServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"} else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate -Name "WUSatusServer" -Value "http://intentionally.disabled"}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'AUOptions') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "AUOptions" -Value 1}
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -value 'UseWUServer') -eq $true) {Set-itemproperty -path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1} else {new-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name "UseWUServer" -Value 1}
-#>
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability") -ne $true) {New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonOn') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonOn" -Value '0'} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonOn' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonUI') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonUI" -Value '0'} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonUI' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue}
 # Adjusting Processor Scheduling to "Performance for Applications"
-    if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl') -eq $true) {} else {New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026 -PropertyType DWORD}
-    Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 00000026
+    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Value 'Win32PrioritySeparation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026'} Else {NewItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026' -PropertyType 'DWord'}
 # Disabling Aero Shake
     if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer'}
-    Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value 1
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1'} Else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1' -PropertyType 'DWord'}
 # Changing DEP to only apply for critical Windows files
-    Start-Process -FilePath "C:\Windows\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait
+    Start-Process -FilePath "$env:SystemRoot\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait
 # Disabling SEHOP
     if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force}
-    New-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value 1 -PropertyType DWORD
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Value 'DisableExceptionChainValidation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value '1'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableExceptionChainValidation' -Value '1' -PropertyType 'DWord'}
 # Enabling Automatic Time and Timezone
-    Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name Type -Value NTP
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name tzautoupdate | Out-Null}
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name Start -Value 00000003
-# Disabling "New network window"
-    if((Test-RegistryValue -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network' -Value NewNetworkWindowOff)-eq $true) {} Else {new-itemproperty -path registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Network -name "NewNetworkWindowOff"}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Value Start) -eq $true) {Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP' -PropertyType 'String'}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name 'tzautoupdate' | Out-Null}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Value Start) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name 'Start' -Value '00000003'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name 'Start' -Value '00000003' -PropertyType 'DWord'}
+# Disabling "New network window
+    if((Test-Path -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff") -ne $true) {New-Item "HKLM:\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" -force -ea SilentlyContinue}
 # Disabling logout and lock user from the Start Menu
-    Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name StartMenuLogOff -Value 1
-    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System') -eq $true) {} Else {New-Item -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies -Name System}
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Value DisableLockWorkstation) -eq $true) {Set-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1 } Else {New-ItemProperty -Path registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name DisableLockWorkstation -Value 1}
+    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer") -ne $true) {New-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Value StartMenuLogOff) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'StartMenuLogOff' -Value 1 } Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'StartMenuLogOff' -Value 1 -PropertyType DWord -Force -ea SilentlyContinue}
+    if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies' -Name 'System'}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Value DisableLockWorkstation) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'DisableLockWorkstation' -Value 1 } Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'DisableLockWorkstation' -Value 1 -PropertyType DWord}
 # Disabling "Recent Start Menu" items
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\' -Name Explorer}
-    new-itemproperty -path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -name "HideRecentlyAddedApps" -Value 1
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value HideRecentlyAddedApps) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Name 'HideRecentlyAddedApps' -Value 1} Else {new-itemproperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer' -name "HideRecentlyAddedApps" -Value 1 -PropertyType DWord}
 # Enabling "Show hidden files"
     if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion' -Name Explorer}
     if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name Advanced}
-    Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'Hidden' -Value 1 -Force -ea SilentlyContinue
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Value Hidden) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'Hidden' -Value 1} Else {new-itemproperty -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -name "Hidden" -Value 1 -PropertyType DWord}
 # Call "RestorePhotoViewer" function when OS is not Windows Server 2012 R2
 if(!($osType.Caption -like "*Windows Server 2012 R2*")) {RestorePhotoViewer | Out-Null}
 # Disabling "Hide file extention"
-    New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0 -PropertyType DWord
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Value Hidden) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 1} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 1 -PropertyType DWord}
 # Adding "Control Panal" Icon on the Desktop
-    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {  New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
-    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {  New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
-    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
-    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
-# Adding "This PC" Icon on the Desktop
-    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {  New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
-    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {  New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
-    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
-    New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Value '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Value '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue}
+    # Adding "This PC" Icon on the Desktop
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue}
+    if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Value '{20D04FE0-3AEA-1069-A2D8-08002B30309D}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue}
+    if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Value '{20D04FE0-3AEA-1069-A2D8-08002B30309D}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue}
 # Change Wallpaper  
-    (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "C:\Windows\Web\Wallpaper\AzureWallpaper.png")
-    Set-Wallpaper "C:\Windows\Web\Wallpaper\AzureWallpaper.png"
-
+    (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png")
+    Set-Wallpaper "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png"
 # Extract DirectX Archive to C:\Windows when OS is Server 2012 R2
-    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath 'C:\Windows' -Force}
-
+    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath '$env:SystemRoot' -Force}
 # Enabling Autologon
     Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
     ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
@@ -370,8 +369,8 @@ param (
 
 begin {
 	
-	[string] $WinlogonPath = "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
-	[string] $WinlogonBannerPolicyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+	[string] $WinlogonPath = "REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
+	[string] $WinlogonBannerPolicyPath = "REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
 
 	[string] $Enable = 1
 	
@@ -676,7 +675,7 @@ function AddNewDisk {
     # Rolling back registry key
     Set-ItemProperty 'registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoRestartShell -Value 1
     # Restarting Shell
-    Start-Process "C:\Windows\System32\userinit.exe"
+    Start-Process "$env:SystemRoot\System32\userinit.exe"
     }
 }
 
@@ -726,16 +725,15 @@ function BlockHost {
 
 function DownloadNVIDIAdrivers {
     ProgressWriter -Status "Downloading GPU drivers" -PercentComplete $PercentComplete
+    Write-Host -Object ('Downloading drivers for {0}' -f $OSType.Caption) -ForegroundColor Green    
     # Downloading GPU drivers
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # This command gets executed when OS is Windows Server 2012
-        Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green    
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
     } else {
         # This command gets executed when OS is Windows Server 2016 or 2019
-        Write-Host -Object ('Detected OS: ({0})' -f $OSType.Caption) -ForegroundColor Green
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
@@ -746,18 +744,19 @@ function InstallDrivers {
     # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
     Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
-    $GRIDERRORCODE = (Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean" -NoNewWindow -Wait -PassThru).ExitCode
+    $GRIDERRORCODE = (Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait -PassThru).ExitCode
     if($GRIDERRORCODE -eq 0) {Write-Host -ForegroundColor Green -Object 'INSTALLED'} else {Write-Host -ForegroundColor Red -Object 'FAILED'}
     $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
     Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ContinueAzureGamingScript" -Description "Continue Azure Gaming script after Windows reboot" | Out-Null
+    Write-Host -Object 'Restarting Windows...'
     Restart-Computer -Force
     Start-Sleep -Seconds 3
     Write-Warning 'Restarting did not work, please restart Windows manually'
     PAUSE
-    [Environment]::Exit(1)
+    [Environment]::Exit(2)
 }
 
 function GameStreamAfterReboot {
@@ -894,7 +893,7 @@ function InstallGFE {
     Write-Host -Object ('Downloading GFE with {0} Mirror' -f $CountryCode)
     (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForceExperienceSetup.exe")
     Write-Host -Object 'Installing GFE...'
-    Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList '/s /noreboot' -NoNewWindow -Wait
+    Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList '/s','/noreboot' -NoNewWindow -Wait
 }
 
 function Set-Wallpaper {
@@ -926,7 +925,7 @@ Function XboxController {
     # Downloading basic Xbox 360 controller driver
     (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
     if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
-    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng"
+    cmd.exe /c "$env:SystemRoot\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng"
     cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"'
     # Downloading ViGEmBus Controller Driver
     if($osType.Caption -like "*Windows Server 2012*") {
@@ -937,19 +936,21 @@ Function XboxController {
         # This command gets executed if OS is Windows Server 2016 or 2019
         $vigembus = (Invoke-WebRequest -Uri https://github.com/ViGEm/ViGEmBus/releases -UseBasicParsing).links.outerhtml -like "*ViGEmBusSetup_x64.msi*"
         (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AzureTools\ViGEmBusSetup_x64.msi')
-        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow
+        Start-Process '$env:SystemRoot\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow
     }
 }
 
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.6.5.1]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.7]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
+# Set WScriptShell to create Desktop shortcuts
+$WScriptShell = New-Object -ComObject WScript.Shell
 
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.6.5.1]
+Azure Automation Gaming Script [Version 0.9.7]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
