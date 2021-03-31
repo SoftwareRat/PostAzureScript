@@ -721,8 +721,13 @@ function BlockHost {
 }
 
 function DownloadNVIDIAdrivers {
-    ProgressWriter -Status "Downloading GPU drivers" -PercentComplete $PercentComplete
-    Write-Host -Object ('Downloading drivers for {0}' -f $OSType.Caption) -ForegroundColor Green    
+    param (
+        $TryingAgain
+    )
+    if (!($TryingAgain)) {
+        ProgressWriter -Status "Downloading GPU drivers" -PercentComplete $PercentComplete
+        Write-Host -Object ('Downloading drivers for {0}' -f $OSType.Caption) -ForegroundColor Green    
+    }
     # Downloading GPU drivers
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # This command gets executed when OS is Windows Server 2012
@@ -740,10 +745,11 @@ function DownloadNVIDIAdrivers {
 function InstallDrivers {
     # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
-    IF ($DRIVERPATH -ne $true) {
+    IF (!($DRIVERPATH)) {
         Write-Warning -Message 'Driver download failed, trying it again...'
-        DownloadNVIDIAdrivers
+        DownloadNVIDIAdrivers -TryingAgain
     }
+    ProgressWriter -Status "Installing GPU drivers" -PercentComplete $PercentComplete
     Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
     Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait
     $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
@@ -760,7 +766,7 @@ function InstallDrivers {
 }
 
 function GameStreamAfterReboot {
-    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAzureGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAzureGamingScript" -Confirm:$false }
+    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAzureGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAzureGamingScript" -Confirm:$false}
     ProgressWriter -Status "Patching GameStream to work with unsupported NVIDIA GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
     (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
@@ -892,8 +898,13 @@ function InstallGFE {
     } else {Set-Variable -Name 'CountryCode' -Value 'US'}
     Write-Host -Object ('Downloading GFE with {0} Mirror' -f $CountryCode)
     (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForceExperienceSetup.exe")
-    Write-Host -Object 'Installing GFE...'
-    Start-Process -FilePath 'C:\AzureTools\GeForceExperienceSetup.exe' -ArgumentList "-s","-noreboot" -Wait
+    Write-Host -Object 'Installing GeForce Experience...' -NoNewline
+    $GFEExitCode = (Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList "-s" -NoNewWindow -Wait -Passthru).ExitCode
+    if($GFEExitCode -eq 0) {Write-Host "INSTALLED" -ForegroundColor Green}
+    else { 
+        Write-Host "FAILED" -ForegroundColor Red
+        throw "GeForce Experience installation failed (Error: $GFEExitCode)."
+    }
 }
 
 function Set-Wallpaper {
@@ -943,7 +954,7 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.8.1]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.9]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
@@ -951,8 +962,10 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.8.1]
+Azure Automation Gaming Script [Version 0.9.9]
 (c) 2021 SoftwareRat. All rights reserved.'
+
+if (MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -ForegroundColor Yellow}
 
 if(!$MoonlightAfterReboot) {
     $ScripttaskList = (
