@@ -21,18 +21,16 @@ $GameSeatDisplayError = (Start-Process -FilePath 'C:\AzureTools\GameSeatDisplay.
         (Write-Error "[ERROR]: Failed setting primary display to nvidia head")
     }
 # Checking if module is installed
-$CheckForModule = (Get-Module -Name PSWindowsUpdate).Name
-IF (!($CheckForModule -eq "PSWindowsUpdate")) {
+Import-Module -Name 'PSWindowsUpdate' -Force -ErrorAction SilentlyContinue
+IF (!(Get-InstalledModule PSWindowsUpdate -ErrorAction SilentlyContinue)) {
     Write-Host -ForegroundColor Red -Object 'Windows Update module not installed, installing it again...'
-    Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-    Install-PackageProvider -Name NuGet -Scope AllUsers -Force
-    Install-Module -Name PSWindowsUpdate -Scope AllUsers -Force
+    Set-PSRepository -Name "PSGallery" -InstallationPolicy 'Trusted'
+    Install-PackageProvider -Name 'NuGet' -Scope 'AllUsers' -Force
+    Install-Module -Name 'PSWindowsUpdate' -Scope 'AllUsers' -Force
 }
 # Checking for Windows updates
-Write-Host -Object 'Scanning for Windows Updates'
-Get-WindowsUpdate
-Write-Host -Object 'Installing updates...'
-Install-WindowsUpdate -AcceptAll
+Write-Host -Object 'Scanning and installing Windows Updates...'
+Get-WindowsUpdate -AcceptAll -Install
 Write-Host("*************************************************************************")
 Write-Host("================= Completed Startup Script Execution  ===================")
 Write-Host("*************************************************************************")

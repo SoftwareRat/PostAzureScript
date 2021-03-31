@@ -892,8 +892,7 @@ function InstallGFE {
     Write-Host -Object ('Downloading GFE with {0} Mirror' -f $CountryCode)
     (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForceExperienceSetup.exe")
     Write-Host -Object 'Installing GFE...'
-    Start-Sleep -Seconds '3'
-    Start-Process -FilePath 'C:\AzureTools\GeForceExperienceSetup.exe' -ArgumentList '/s','/noreboot' -Wait
+    Start-Process -FilePath 'C:\AzureTools\GeForceExperienceSetup.exe' -ArgumentList "-s","-noreboot" -Wait
 }
 
 function Set-Wallpaper {
@@ -943,7 +942,7 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.7.5]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.8]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
@@ -951,7 +950,7 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.7.5]
+Azure Automation Gaming Script [Version 0.9.8]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
