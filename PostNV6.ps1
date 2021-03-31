@@ -954,7 +954,7 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.9]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.9.1]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
@@ -962,10 +962,10 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.9]
+Azure Automation Gaming Script [Version 0.9.9.1]
 (c) 2021 SoftwareRat. All rights reserved.'
 
-if (MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -ForegroundColor Yellow}
+if($MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -ForegroundColor Yellow}
 
 if(!$MoonlightAfterReboot) {
     $ScripttaskList = (
