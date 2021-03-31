@@ -1,10 +1,7 @@
 # Setting argument for using Script after Reboot [Moonlight only]
 param (
-    [switch]$MoonlightAfterReboot = $false,
-    [switch]$VerboseMode = $false
-)
-
-
+    [switch]$MoonlightAfterReboot = $false
+    )
 
 if(!$MoonlightAfterReboot) {
     # Start logging for this script 
@@ -301,7 +298,7 @@ ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComp
     if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force}
     if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Value 'DisableExceptionChainValidation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value '1'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableExceptionChainValidation' -Value '1' -PropertyType 'DWord'}
 # Enabling Automatic Time and Timezone
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Value Start) -eq $true) {Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP' -PropertyType 'String'}
+    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Value 'Type') -eq $true) {Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP' -PropertyType 'String'}
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name 'tzautoupdate' | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Value Start) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name 'Start' -Value '00000003'} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate' -Name 'Start' -Value '00000003' -PropertyType 'DWord'}
 # Disabling "New network window
@@ -743,6 +740,10 @@ function DownloadNVIDIAdrivers {
 function InstallDrivers {
     # Installing GPU drivers
     $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
+    IF ($DRIVERPATH -ne $true) {
+        Write-Warning -Message 'Driver download failed, trying it again...'
+        DownloadNVIDIAdrivers
+    }
     Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
     Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait
     $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
@@ -942,7 +943,7 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.8]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 0.9.8.1]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
@@ -950,7 +951,7 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 0.9.8]
+Azure Automation Gaming Script [Version 0.9.8.1]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if(!$MoonlightAfterReboot) {
