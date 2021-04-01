@@ -5,7 +5,7 @@ Write-Host("====================================================================
 Write-Host("========================== Seat Startup =================================")
 Write-Host("=========================================================================")
 Write-Host ('[{0}] Forcing custom EDID' -f $DATEANDTIMELOG)
-cmd.exe /C "echo y | C:\AzureTools\forcedisp\Win10-ForceDispx64.exe f C:\AzureTools\forcedisp\NvidiaVGX_custom_16_9_1920_1080.hex 0 100"
+cmd.exe /C "echo y | C:\AzureTools\forcedisp\Win10-ForceDispx64.exe f C:\AzureTools\forcedisp\NvidiaVGX_custom_16_9_3840_2160.hex 0 100"
 Write-Host ('[{0}] Setting native resolution in the base image' -f $DATEANDTIMELOG)
 $nvDisplayResError = (Start-Process -FilePath 'C:\AzureTools\nvDisplayRes.exe' -ArgumentList '--x 1920 --y 1080' -Wait -PassThru).ExitCode
 if($nvDisplayResError -eq 0) {

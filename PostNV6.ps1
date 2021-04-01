@@ -47,7 +47,7 @@ if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 
 Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | Out-Null
 
 function CheckOSsupport {
-    if($osType.Caption -like "*Windows Server 2012 R2*" -or $osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
+    if(($osType.Caption -like "*Windows Server 2012 R2*") -or ($osType.Caption -like "*Windows Server 2019*") -or ($osType.Caption -like "*Windows Server 2016*") -or ($osType.BuildNumber -ge '17763')) {
         # If OS is supported
         Write-Host -Object ('Your OS ({0}) is supported' -f $OSType.Caption) -ForegroundColor Green
     } else {
@@ -58,8 +58,10 @@ function CheckOSsupport {
         Microsoft Windows Server 2012 R2
         Microsoft Windows Server 2016
         Microsoft Windows Server 2019
+        Microsoft Windows 10, version 1809 or higher
         Please use the OS above or suggest your OS in the GitHub Repository, thanks :)
         " -f $osType.Caption)
+        PAUSE
         throw "Unsupported OS detected"
     }
 }
@@ -84,7 +86,29 @@ function ManageWindowsFeatures {
     # Enable .NET Framework 3.5 for running software based on it
     # Source: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/enable-net-framework-35-by-using-windows-powershell#steps
     Write-Output -InputObject 'Installing .NET Framework 3.5...'
-    Install-WindowsFeature -Name 'Net-Framework-Core' | Out-Null
+    if($osType.ProductType -eq '3') {
+        Install-WindowsFeature -Name 'Net-Framework-Core' | Out-Null
+    } else {
+        Get-WindowsOptionalFeature -Online -FeatureName '*NetFx3*' | Enable-WindowsOptionalFeature -Online | Out-Null
+    }
+
+    # Enable DirectPlay for older games
+    Write-Output -InputObject 'Installing DirectPlay...'
+    if($osType.ProductType -eq '3') {
+        # When OS is Windows Server
+        Install-WindowsFeature -Name 'Direct-Play' | Out-Null
+    } else {
+        # When OS is Windows 10
+        Get-WindowsOptionalFeature -Online -FeatureName '*Direct*Play*' | Enable-WindowsOptionalFeature -Online | Out-Null
+    }
+
+    # Enable Wireless LAN Service because some software need it [Server OS only]
+    Write-Output -InputObject 'Install Wireless Networking...'
+    if($osType.ProductType -eq '3') {
+        Install-WindowsFeature -Name 'Wireless-Networking' | Out-Null
+    }
+
+
     # Installing special features for Server 2012 R2
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # Installing qWave
@@ -102,16 +126,11 @@ function ManageWindowsFeatures {
         }
     
     # Uninstalling Windows Defender on Windows Server 2016 and 2019 for saving resources
-    if($osType.Caption -like "*Windows Server 2016*" -or $osType.Caption -like "*Windows Server 2019*") {
+    if(($osType.Caption -like "*Windows Server 2016*") -or ($osType.Caption -like "*Windows Server 2019*")) {
         Write-Output -InputObject 'Uninstall Windows Defender...'
         Uninstall-WindowsFeature -Name 'Windows-Defender' | Out-Null
     }
-    # Enable DirectPlay for older games
-        Write-Output -InputObject 'Installing DirectPlay...'
-        Get-WindowsFeature -Name "*Direct-Play*" | Install-WindowsFeature | Out-Null
-    # Enable Wireless LAN Service because some software need it
-        Write-Output -InputObject 'Install Wireless Networking...'
-        Install-WindowsFeature -Name 'Wireless-Networking' | Out-Null
+
     # Installing Windows Update module for PowerShell
     # Source: https://www.powershellgallery.com/packages/PSWindowsUpdate/
         Write-Output -InputObject 'Installing Windows Update module...'
@@ -163,14 +182,14 @@ function InstallGameLaunchers {
         Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow | Out-Null
     <# Adding this launchers as optional function soon 
     # Downloading and installing Origin
-    Write-Host -Object 'Downloading and installing Origin'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
+        Write-Host -Object 'Downloading and installing Origin'
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
     # Downloading and installing Ubisoft Connect [Used to be known as uPlay]
-    Write-Host -Object 'Downloading and installing Ubisoft Connect'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
+        Write-Host -Object 'Downloading and installing Ubisoft Connect'
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
     # Downloading and installing GOG GALAXY
-    Write-Host -Object 'Downloading and installing GOG GALAXY'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
+        Write-Host -Object 'Downloading and installing GOG GALAXY'
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
     #>
 }
 
@@ -189,8 +208,15 @@ function InstallCommonSoftware {
         ProgressWriter -Status "Installing Microsoft Visual C++ Redist" -PercentComplete $PercentComplete
         Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow | Out-Null
     # Downloading and installing required DirectX libraries
+    if ($osType.ProductType -eq '3') {
         ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
         Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow | Out-Null
+    }
+    # Downloading and installing Parsec when user request this software
+        if(($StreamingSolution -eq 'Parsec') -or ($StreamingSolution -eq 'ParsecGameStream')) {
+            (New-Object System.Net.WebClient).DownloadFile("https://builds.parsecgaming.com/package/parsec-windows.exe", "C:\AzureTools\parsec-windows.exe")
+            Start-Process -FilePath "C:\AzureTools\parsec-windows.exe" -ArgumentList '/S' -Wait -NoNewWindow | Out-Null
+        }
     # Downloading and installing ChocolateyGUI
         ProgressWriter -Status "Installing ChocolateyGUI" -PercentComplete $PercentComplete
         Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ChocolateyGUI" -Wait -NoNewWindow | Out-Null
@@ -207,10 +233,12 @@ function InstallCommonSoftware {
                 $ChocoShortcut.Save()
             }
     # Downloading and installing Moonlight Internet Hosting Tool
+    if(($StreamingSolution -eq 'GameStream') -or ($StreamingSolution -eq 'ParsecGameStream')) {
         $MIHTHTML = (Invoke-WebRequest -Uri "https://github.com/moonlight-stream/Internet-Hosting-Tool/releases" -UseBasicParsing).Links.Href -like "*InternetHostingToolSetup-*"
         $MIHTDOWNLOAD = $MIHTHTML.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($MIHTDOWNLOAD), "C:\AzureTools\InternetHostingToolSetup.exe")
         Start-Process -FilePath 'C:\AzureTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet','/install','/norestart' -Wait -NoNewWindow | Out-Null
+    }
     
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Installing following features if OS is Windows Server 2012 R2
@@ -222,35 +250,29 @@ function InstallCommonSoftware {
             Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk --version 9.29.1962.01" -Wait -NoNewWindow | Out-Null
     }
 }
-<# Currently broken, will be fixed soon
-function StreamingSolutionSelection {
-    Do {
-       $selection = Read-Host "Do you want to use Moonlight or Parsec? (M|P)"
-       Switch($selection) {
-          M { 'Moonlight' }
-          P { 'Parsec' }
-       }
-       until{$selection -match "M|P"}
-    }
-}
-$global:streamingsolutionselection = StreamingSolutionSelection
-#>
 
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
-        Write-Warning 'RDP detected, this script will terminate itself'
-        PAUSE
-        throw "[rdp_session_detected] RDP session detected, please use alternatives like AnyDesk or VNC! `r`nFor more information check out the GitHub Wiki."
+        Write-Warning 'RDP detected! You cannot execute this script with RDP.'
+        $InstallAnyDesk = (Read-Host "Do you want to install AnyDesk instead? (y/n)").ToLower() -eq "y"
+        IF ($InstallAnyDesk) {
+            (New-Object System.Net.WebClient).DownloadFile("https://download.anydesk.com/AnyDesk.msi", "C:\AzureTools\AnyDesk.msi")
+            Start-Process -FilePath 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\AnyDesk.msi"','/qn','/norestart' -Wait
+            Start-Process -FilePath 'C:\Program Files (x86)\AnyDeskMSI\AnyDeskMSI.exe'
+        }
+        throw 'This script got terminated [rdp_session_terminated]'
     }
 }
 
 function EnableAudio {
 ProgressWriter -Status "Enabling Audio Services" -PercentComplete $PercentComplete
-# Enabling Audio on Windows Server
+if ($osType.ProductType -eq '3') {
+    # Enabling Audio on Windows Server
     Set-Service -Name "Audiosrv" -StartupType Automatic
     Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic 
     Start-Service -Name "Audiosrv" 
-    Start-Service -Name "AudioEndpointBuilder"
+    Start-Service -Name "AudioEndpointBuilder"    
+}
 # Downloading and installing VBCABLE Audio driver
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
     (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
@@ -268,6 +290,37 @@ IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -Pat
     }
 }
 
+function UninstallUWPBloatware {
+    if($osType.ProductType -eq '1') {
+        Write-Host -Object 'Windows 10 detected, uninstalling non-essential UWP apps'
+        Get-AppxPackage *3dbuilder* | Remove-AppxPackage | Out-Null 
+        Get-AppxPackage *windowsalarms* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *windowscalculator* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *windowscommunicationsapps* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *windowscamera* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *officehub* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *skypeapp* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *getstarted* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *zunemusic* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *windowsmaps* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *solitairecollection* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *bingfinance* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *zunevideo* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *bingnews* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *onenote* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *windowsphone* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *people* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *photos* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *bingsports* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *bingweather* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *soundrecorder* | Remove-AppxPackage | Out-Null
+        Get-AppxPackage *paint* | Remove-AppxPackage | Out-Null
+        if($osType.BuildNumber -ge '19041') {
+            # Uninstalling Cortana 
+            Get-AppxPackage -allusers Microsoft.549981C3F5F10 | Remove-AppxPackage | Out-Null
+        }
+    }
+}
 function SetWindowsSettings {
 ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComplete
 # Enabling Autologon
@@ -276,10 +329,12 @@ ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
 Set-SecureAutoLogon `
     -Username $env:USERNAME `
     -Password (Read-Host -AsSecureString)
-# Disabling Server Manager opening on Startup
-    Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask
-# Enabling Dark Mode [Server 2019 only]
-    if ($osType.Caption -like "*Windows Server 2019*") {
+# Disabling Server Manager opening on Startup [when OS is Windows Server]
+if ($osType.ProductType -eq '3') {
+    Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask | Out-Null
+} 
+# Enabling Dark Mode [Server 2019 and Windows 10 1809 or higher only]
+    if (($osType.Caption -like "*Windows Server 2019*") -or ($osType.BuildNumber -ge 17763)) {
         if((Test-Path -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize') -eq $true) {} Else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes' -Name Personalize | Out-Null}
         if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Value 'AppsUseLightTheme') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value '0' | Out-Null} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}}
 # Disabling Charms Bar [Server 2012 R2 only]
@@ -289,20 +344,23 @@ Set-SecureAutoLogon `
         if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Value 'DisableTRCorner') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTRCorner" -Value '1'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableTRCorner" -Value '1' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
         if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Value 'DisableCharmsHint') -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableCharmsHint" -Value '1'} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ImmersiveShell\EdgeUi' -Name "DisableCharmsHint" -Value '1' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
         }
-# Disabling "Shutdown Event Tracker"
-    if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability") -ne $true) {New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -force -ea SilentlyContinue | Out-Null}
-    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonOn') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonOn" -Value '0' | Out-Null} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonOn' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
-    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonUI') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonUI" -Value '0' | Out-Null} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonUI' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
-# Adjusting Processor Scheduling to "Performance for Applications"
-    if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Value 'Win32PrioritySeparation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026'} Else {NewItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026' -PropertyType 'DWord' | Out-Null}
 # Disabling Aero Shake
     if((Test-Path -path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer') -eq $true) {} else {New-Item -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\' -Name 'Explorer' | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer' -Value 'NoWindowMinimizingShortcuts') -eq $true) {Set-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1' | Out-Null} Else {New-ItemProperty -Path "registry::HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoWindowMinimizingShortcuts" -Value '1' -PropertyType 'DWord' | Out-Null}
-# Changing DEP to only apply for critical Windows files
-    Start-Process -FilePath "C:\Windows\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait -NoNewWindow | Out-Null
-# Disabling SEHOP
-    if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force | Out-Null}
-    if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Value 'DisableExceptionChainValidation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value '1' | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableExceptionChainValidation' -Value '1' -PropertyType 'DWord' | Out-Null}
+# This get only executed when OS get detected as Windows Server
+    if ($osType.ProductType -eq '3') {
+    # Changing DEP to only apply for critical Windows files 
+        Start-Process -FilePath "C:\Windows\System32\bcdedit.exe" -ArgumentList "/set {current} nx OptIn" -Wait -NoNewWindow | Out-Null
+    # Disabling SEHOP
+        if((Test-Path -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel') -eq $true) {} else {New-Item -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\" -Name "Kernel" -Force | Out-Null}
+        if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Value 'DisableExceptionChainValidation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "DisableExceptionChainValidation" -Value '1' | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableExceptionChainValidation' -Value '1' -PropertyType 'DWord' | Out-Null}
+    # Disabling "Shutdown Event Tracker"
+        if((Test-Path -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability") -ne $true) {New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -force -ea SilentlyContinue | Out-Null}
+        if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonOn') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonOn" -Value '0' | Out-Null} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonOn' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
+        if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" -Value 'ShutdownReasonUI') -eq $true) {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name "ShutdownReasonUI" -Value '0' | Out-Null} Else {New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Reliability' -Name 'ShutdownReasonUI' -Value '0' -PropertyType 'DWord' -Force -ea SilentlyContinue | Out-Null}
+    # Adjusting Processor Scheduling to "Performance for Applications"
+        if((Test-RegistryValue -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Value 'Win32PrioritySeparation') -eq $true) {Set-ItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026'} Else {NewItemProperty -Path "registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value '00000026' -PropertyType 'DWord' | Out-Null}
+    }
 # Enabling Automatic Time and Timezone
     if((Test-RegistryValue -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Value 'Type') -eq $true) {Set-ItemProperty -path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP' | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name 'Type' -Value 'NTP' -PropertyType 'String' | Out-Null}
     if((Test-Path -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\tzautoupdate') -eq $true) {} Else {New-Item -Path 'registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\' -Name 'tzautoupdate' | Out-Null}
@@ -325,12 +383,12 @@ Set-SecureAutoLogon `
 if(!($osType.Caption -like "*Windows Server 2012 R2*")) {RestorePhotoViewer | Out-Null}
 # Disabling "Hide file extention"
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Value Hidden) -eq $true) {Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 1 | Out-Null} Else {New-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 1 -PropertyType DWord | Out-Null}
-# Adding "Control Panal" Icon on the Desktop
+# Adding "Control Panel" Icon on the Desktop
     if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue | Out-Null}
     if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {New-Item "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Value '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Value '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue | Out-Null}
-    # Adding "This PC" Icon on the Desktop
+# Adding "This PC" Icon on the Desktop
     if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel") -ne $true) {New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -force -ea SilentlyContinue | Out-Null}
     if((Test-Path -LiteralPath "registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu") -ne $true) {New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -force -ea SilentlyContinue | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Value '{20D04FE0-3AEA-1069-A2D8-08002B30309D}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue | Out-Null}
@@ -683,7 +741,7 @@ ProgressWriter -Status "Disabling non-NVIDIA GPUs" -PercentComplete $PercentComp
         # This command gets executed when OS is Windows Server 2012 R2
         Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
     } else {
-        # This command gets executed when OS is Windows Server 2016 or 2019
+        # This command gets executed when OS is Windows 10-based
         Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false
     }
 }
@@ -691,9 +749,9 @@ ProgressWriter -Status "Disabling non-NVIDIA GPUs" -PercentComplete $PercentComp
 function DisableFloppyAndCDROM {
     ProgressWriter -Status "Disabling useless hardware" -PercentComplete $PercentComplete
     # Disabling Floppy Disk drive
-        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow | Out-Null
     # Disabling CDROM drive
-        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow | Out-Null
 }
 
 Function ProgressWriter {
@@ -735,7 +793,7 @@ function DownloadNVIDIAdrivers {
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
     } else {
-        # This command gets executed when OS is Windows Server 2016 or 2019
+        # This command gets executed when OS is Windows 10-based
         $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
         $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
         (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
@@ -766,6 +824,7 @@ function InstallDrivers {
 }
 
 function GameStreamAfterReboot {
+    if(($StreamingSolution -eq 'GameStream') -or ($StreamingSolution -eq 'ParsecGameStream')) {
     if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAzureGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAzureGamingScript" -Confirm:$false}
     ProgressWriter -Status "Patching GameStream to work with unsupported NVIDIA GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
@@ -785,6 +844,7 @@ function GameStreamAfterReboot {
     throw "Regex failed to extract device ID."
     }
     & 'C:\AzureTools\GameStream\Patcher.ps1' -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll" | Out-Null;
+    }
 }
 
 function StartupScript {
@@ -886,6 +946,7 @@ function RestorePhotoViewer {
 }
 
 function InstallGFE {
+    if(($StreamingSolution -eq 'GameStream') -or ($StreamingSolution -eq 'ParsecGameStream')) {
     $IP = (Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPAddress")
     IF ($IP.countryCode -eq "US" -or $IP.countryCode -eq "SG") {
         Set-Variable -Name 'CountryCode' -Value 'US'
@@ -904,7 +965,7 @@ function InstallGFE {
     else { 
         Write-Host "FAILED" -ForegroundColor Red
         throw "GeForce Experience installation failed (Error: $GFEExitCode)."
-    }
+    }}
 }
 
 function Set-Wallpaper {
@@ -933,11 +994,13 @@ Add-Type -TypeDefinition $setwallpapersrc
 
 Function XboxController {
     ProgressWriter -Status "Downloading Xbox 360 controller drivers" -PercentComplete $PercentComplete
+    if($osType.ProductType -eq '3') {
     # Downloading basic Xbox 360 controller driver
-    (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
-    if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
-    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng" | Out-Null
-    cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
+        (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
+        if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
+        cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng" | Out-Null
+        cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
+    }
     # Downloading ViGEmBus Controller Driver
     if($osType.Caption -like "*Windows Server 2012*") {
         # This command gets executed if OS is Windows Server 2012
@@ -954,7 +1017,7 @@ Function XboxController {
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
 # Changing Title to "First-time setup for Gaming on Microsoft Azure"
-$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 1.0.0]"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 1.0.5]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
@@ -962,8 +1025,22 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-Azure Automation Gaming Script [Version 1.0.0]
+Azure Automation Gaming Script [Version 1.0.5]
 (c) 2021 SoftwareRat. All rights reserved.'
+
+Do{
+    Clear-Variable selection -ErrorAction SilentlyContinue
+    $Selection = (Read-Host "Do you want to use Moonlight, Parsec or both? (m/p/b)")
+    switch($Selection){
+        m{
+            Set-Variable -Name 'StreamingSolution' -Valuey 'GameStream'}
+        p{
+            Set-Variable -Name 'StreamingSolution' -Value 'Parsec'
+        }
+        b{
+            Set-Variable -Name 'StreamingSolution' -Value 'ParsecGameStream'
+        }
+    }}until($Selection -match 'm|p|b')
 
 if($MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -ForegroundColor Yellow}
 
@@ -1009,6 +1086,7 @@ foreach ($func in $ScripttaskListAfterReboot) {
 
 Clear-Host
 Stop-Transcript
+ProgressWriter -status "Done" -percentcomplete 100
 Write-Host -Object 'Script finished!'
 Write-Host -Object 'If you have bugs or feedback suggestions,'
 Write-Host -Object 'go to the GitHub repository of this project.'
