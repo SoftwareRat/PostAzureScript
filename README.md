@@ -26,6 +26,7 @@
 - Server 2019
 
 ### CLOUD SKU: 
+- Standard_NC4as_T4_v3
 - NV6_Standard
 - NV6_Promo
 
