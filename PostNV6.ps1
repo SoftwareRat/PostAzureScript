@@ -1,23 +1,13 @@
 # Setting argument for using Script after Reboot [Moonlight only]
 param (
-    [switch]$MoonlightAfterReboot = $false,
-    [switch]$nvdrivers = $false
-)
+    [switch]$MoonlightAfterReboot = $false
+    )
 
 if(!$MoonlightAfterReboot) {
+    # Start logging for this script 
+    Start-Transcript -Path "C:\AzureTools\logs\script.log"} else
     # Start logging for this script after reboot
-    if((Test-Path -Path "C:\AWSTools\logs\ScriptReboot.log") -eq $true) {
-        Rename-Item -Path "C:\AWSTools\logs\ScriptReboot.log" -NewName 'ScriptRebootOLD.log'
-    } if((Test-Path -Path "C:\AWSTools\logs\ScriptRebootOLD.log") -eq $true) {
-    Remove-Item -Path "C:\AWSTools\logs\ScriptRebootOLD.log"
-} Start-Transcript -Path "C:\AWSTools\logs\ScriptReboot.log"
-} else { # Start logging for this script first-time
-if((Test-Path -Path "C:\AWSTools\logs\ScriptOLD.log") -eq $true) {
-    Remove-Item -Path "C:\AWSTools\logs\ScriptOLD.log"
-} if((Test-Path -Path "C:\AWSTools\logs\script.log") -eq $true) {
-    Rename-Item -Path "C:\AWSTools\logs\script.log" -NewName 'ScriptOLD.log'
-} Start-Transcript -Path "C:\AWSTools\logs\script.log"
-}
+    {Start-Transcript -Path "C:\AzureTools\logs\ScriptReboot.log"}
 
 # Setting function to test for existance of Registry valves
 function Test-RegistryValue {
@@ -47,14 +37,14 @@ function AdminCheck {
 }
 
 # Creating necessary folders
-if((Test-Path -Path 'C:\AWSTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AWSTools -Force -ItemType Directory| Out-Null} 
-if((Test-Path -Path 'C:\AWSTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\' -Name Script -Force -ItemType Directory | Out-Null} 
-if((Test-Path -Path 'C:\AWSTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\' -Name logs -Force -ItemType Directory | Out-Null}
-if((Test-Path -Path 'C:\AWSTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\' -Name drivers -Force -ItemType Directory | Out-Null}
-if((Test-Path -Path 'C:\AWSTools\drivers\NVIDIA') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\drivers' -Name NVIDIA -Force -ItemType Directory | Out-Null}
-if((Test-Path -Path 'C:\AWSTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\' -Name GameStream -Force -ItemType Directory | Out-Null}
-if((Test-Path -Path 'C:\AWSTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AWSTools\' -Name DirectX -Force -ItemType Directory | Out-Null}
-Move-Item -Force "C:\AWSTools\Scripts\Tools\*" -Destination "C:\AWSTools\" | Out-Null
+if((Test-Path -Path 'C:\AzureTools') -eq $true) {} Else {New-Item -Path 'C:\' -Name AzureTools -Force -ItemType Directory| Out-Null} 
+if((Test-Path -Path 'C:\AzureTools\Scripts') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name Script -Force -ItemType Directory | Out-Null} 
+if((Test-Path -Path 'C:\AzureTools\logs') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name logs -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\drivers') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name drivers -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\drivers\NVIDIA') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\drivers' -Name NVIDIA -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\GameStream') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name GameStream -Force -ItemType Directory | Out-Null}
+if((Test-Path -Path 'C:\AzureTools\DirectX') -eq $true) {} Else {New-Item -Path 'C:\AzureTools\' -Name DirectX -Force -ItemType Directory | Out-Null}
+Move-Item -Force "C:\AzureTools\Scripts\Tools\*" -Destination "C:\AzureTools\" | Out-Null
 
 function CheckOSsupport {
     if($osType.Caption -like "*Windows Server 2012 R2*" -or $osType.Caption -like "*Windows Server 2019*" -or $osType.Caption -like "*Windows Server 2016*") {
@@ -74,19 +64,19 @@ function CheckOSsupport {
     }
 }
 
-function TestForAWS { 
-    # Pinging AWS Instance Metadata Service to check if the system is an AWS VM
-    # Source: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
-    $aws = $(
-                  Try {(Invoke-WebRequest -Uri "http://169.254.169.254/latest/meta-data/" -Headers @{Metadata="true"} -TimeoutSec 5)}
+function TestForAzure { 
+    # Pinging Azure Instance Metadata Service to check if the system is an Azure VM
+    # Source: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service?tabs=windows
+    $azure = $(
+                  Try {(Invoke-WebRequest -Uri "http://169.254.169.254/metadata/instance?api-version=2020-09-01" -Headers @{Metadata="true"} -TimeoutSec 5)}
                   catch {}              
                )
 
-    if ($aws.StatusCode -eq 200) {
-        Write-Host -ForegroundColor Green "AWS Instance detected"
+    if ($azure.StatusCode -eq 200) {
+        Write-Host -ForegroundColor Green "Microsoft Azure Instance detected"
         }
     Else {
-        throw "No AWS instance detected."
+        throw "No Azure instance detected."
         }
 }
 
@@ -132,6 +122,24 @@ function ManageWindowsFeatures {
         # Installing base Windows Update module
         Install-Module -Name PSWindowsUpdate -Scope AllUsers -Force | Out-Null
 }
+
+function GPUDriverUpdate {
+    if(!($osType.Caption -like "*Windows Server 2012 R2*")) {
+        # Downloading GPU Updater Tool and creating desktop shortcut for it if OS is NOT Server 2012 R2
+        ProgressWriter -Status "Downloading GPU UpdateTool on Azure" -PercentComplete $PercentComplete
+        (New-Object System.Net.WebClient).DownloadFile("https://github.com/SoftwareRat/Cloud-GPU-Updater/archive/refs/heads/master.zip", "C:\AzureTools\drivers\UpdateTool.zip")
+        Expand-Archive -Path 'C:\AzureTools\drivers\UpdateTool.zip' -DestinationPath 'C:\AzureTools\drivers\'
+        Rename-Item -Path 'C:\AzureTools\drivers\Cloud-GPU-Updater-master\' -NewName 'UpdateTool'
+        $GPUshortcut = $WScriptShell.CreateShortcut("$env:USERPROFILE\Desktop\GPU Update Tool.lnk")
+        $GPUshortcut.TargetPath="$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+        $GPUshortcut.Arguments='-ExecutionPolicy Bypass -File "C:\AzureTools\drivers\UpdateTool\GPUUpdaterTool.ps1"'
+        $GPUshortcut.WorkingDirectory = "C:\AzureTools\drivers\UpdateTool\";
+        $GPUshortcut.IconLocation = "C:\AzureTools\drivers\UpdateTool\Additional Files\UpdateTool.ico, 0";
+        $GPUshortcut.WindowStyle = 0;
+        $GPUshortcut.Description = "Updating your GPU drivers";
+        $GPUshortcut.Save()
+    }
+}
     
 function InstallChocolatey {
     # Download and install Chocolatey [Package Manager for Windows]
@@ -147,22 +155,22 @@ function InstallGameLaunchers {
 # Downloading and installing common game launchers 
     # Downloading and installing Steam
         Write-Host -Object 'Downloading and installing Steam'
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install steam --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install steam" -Wait -NoNewWindow | Out-Null
         # Disable Steam Autostart
         Set-ItemProperty -Path 'registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'Steam' -Value ([byte[]](0x33,0x32,0xFF)) | Out-Null
     # Downloading and installing Epic Games Launcher
         Write-Host -Object 'Downloading and installing Epic Games Launcher'
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install epicgameslauncher" -Wait -NoNewWindow | Out-Null
     <# Adding this launchers as optional function soon 
     # Downloading and installing Origin
     Write-Host -Object 'Downloading and installing Origin'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install origin --limit-output" -Wait -NoNewWindow | Out-Null
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install origin" -Wait -NoNewWindow
     # Downloading and installing Ubisoft Connect [Used to be known as uPlay]
     Write-Host -Object 'Downloading and installing Ubisoft Connect'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect --limit-output" -Wait -NoNewWindow | Out-Null
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ubisoft-connect" -Wait -NoNewWindow
     # Downloading and installing GOG GALAXY
     Write-Host -Object 'Downloading and installing GOG GALAXY'
-    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy--limit-output" -Wait -NoNewWindow | Out-Null
+    Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install goggalaxy" -Wait -NoNewWindow
     #>
 }
 
@@ -170,22 +178,22 @@ function InstallCommonSoftware {
 # Downloading and installing most common software
     # Downloading and installing 7-Zip
         ProgressWriter -Status "Installing 7-Zip" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install 7zip --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install 7zip" -Wait -NoNewWindow | Out-Null
     # Downloading and installing Microsoft Edge
         ProgressWriter -Status "Installing Microsoft Edge" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install microsoft-edge --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install microsoft-edge" -Wait -NoNewWindow | Out-Null
     # Downloading and installing VLC Media Player
         ProgressWriter -Status "Installing VLC Media Player" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vlc --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vlc" -Wait -NoNewWindow | Out-Null
     # Downloading Microsoft Visual C++ Redist
         ProgressWriter -Status "Installing Microsoft Visual C++ Redist" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140 --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install vcredist140" -Wait -NoNewWindow | Out-Null
     # Downloading and installing required DirectX libraries
         ProgressWriter -Status "Installing DirectX" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx" -Wait -NoNewWindow | Out-Null
     # Downloading and installing ChocolateyGUI
         ProgressWriter -Status "Installing ChocolateyGUI" -PercentComplete $PercentComplete
-        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ChocolateyGUI --limit-output" -Wait -NoNewWindow | Out-Null
+        Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install ChocolateyGUI" -Wait -NoNewWindow | Out-Null
         IF ((Test-Path -Path 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chocolatey GUI.lnk') -eq $true) {
             Write-Host 'Copying ChocolateyGUI shortcut to public Desktop'
             Copy-Item 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chocolatey GUI.lnk' 'C:\Users\Public\Desktop\Chocolatey GUI.lnk'} else {
@@ -201,19 +209,32 @@ function InstallCommonSoftware {
     # Downloading and installing Moonlight Internet Hosting Tool
         $MIHTHTML = (Invoke-WebRequest -Uri "https://github.com/moonlight-stream/Internet-Hosting-Tool/releases" -UseBasicParsing).Links.Href -like "*InternetHostingToolSetup-*"
         $MIHTDOWNLOAD = $MIHTHTML.split('(')[1].split(')')[0]
-        (New-Object System.Net.WebClient).DownloadFile($($MIHTDOWNLOAD), "C:\AWSTools\InternetHostingToolSetup.exe")
-        Start-Process -FilePath 'C:\AWSTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet','/install','/norestart' -Wait -NoNewWindow | Out-Null
+        (New-Object System.Net.WebClient).DownloadFile($($MIHTDOWNLOAD), "C:\AzureTools\InternetHostingToolSetup.exe")
+        Start-Process -FilePath 'C:\AzureTools\InternetHostingToolSetup.exe' -ArgumentList '/quiet','/install','/norestart' -Wait -NoNewWindow | Out-Null
     
     if($osType.Caption -like "*Windows Server 2012 R2*") {
     # Installing following features if OS is Windows Server 2012 R2
         # Downloading and installing Open Shell
             ProgressWriter -Status "Installing Open Shell" -PercentComplete $PercentComplete
-            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install open-shell --limit-output" -Wait -NoNewWindow | Out-Null
+            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install open-shell" -Wait -NoNewWindow | Out-Null
         # Downloading and installing DirectX SDK (specify version as temp WAR for wrong hash)
             ProgressWriter -Status "Installing DirectX SDK" -PercentComplete $PercentComplete
-            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk --version 9.29.1962.01 --limit-output" -Wait -NoNewWindow | Out-Null
+            Start-Process -FilePath "$env:PROGRAMDATA\chocolatey\bin\choco.exe" -ArgumentList "install directx-sdk --version 9.29.1962.01" -Wait -NoNewWindow | Out-Null
     }
 }
+<# Currently broken, will be fixed soon
+function StreamingSolutionSelection {
+    Do {
+       $selection = Read-Host "Do you want to use Moonlight or Parsec? (M|P)"
+       Switch($selection) {
+          M { 'Moonlight' }
+          P { 'Parsec' }
+       }
+       until{$selection -match "M|P"}
+    }
+}
+$global:streamingsolutionselection = StreamingSolutionSelection
+#>
 
 function CheckForRDP {
     if([bool]((quser) -imatch "rdp")) {
@@ -232,10 +253,10 @@ ProgressWriter -Status "Enabling Audio Services" -PercentComplete $PercentComple
     Start-Service -Name "AudioEndpointBuilder"
 # Downloading and installing VBCABLE Audio driver
 IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -PathType Leaf)) {Write-Warning -Message 'VBAudio drivers found, skipping installation'} else {
-    (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AWSTools\drivers\VBCABLE_Driver_Pack43.zip")
-    Expand-Archive -Path 'C:\AWSTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AWSTools\drivers\VBCABLE'
+    (New-Object System.Net.WebClient).DownloadFile("https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip", "C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip")
+    Expand-Archive -Path 'C:\AzureTools\drivers\VBCABLE_Driver_Pack43.zip' -DestinationPath 'C:\AzureTools\drivers\VBCABLE'
     # Adding VBCABLE certificate as trusted publisher to install VBCABLE silently 
-    $DriverPath = Get-Item "C:\AWSTools\drivers\VBCABLE\"
+    $DriverPath = Get-Item "C:\AzureTools\drivers\VBCABLE\"
     $CertStore = Get-Item "cert:\LocalMachine\TrustedPublisher"
     $CertStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
     Get-ChildItem -Recurse -Path $DriverPath -Filter "*win7.cat" | ForEach-Object {
@@ -243,16 +264,18 @@ IF ((Test-Path -Path 'C:\Windows\System32\drivers\vbaudio_cable64_win7.sys' -Pat
         $CertStore.Add($Cert)
     }
     $CertStore.Close()
-    Start-Process -FilePath "C:\AWSTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait
+    Start-Process -FilePath "C:\AzureTools\drivers\VBCABLE\VBCABLE_Setup_x64.exe" -ArgumentList "-i","-h" -NoNewWindow -Wait
     }
 }
 
 function SetWindowsSettings {
 ProgressWriter -Status "Changing Windows settings" -PercentComplete $PercentComplete
 # Enabling Autologon
+Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
+ProgressWriter -Status "Enable Autologon" -PercentComplete $PercentComplete
 Set-SecureAutoLogon `
     -Username $env:USERNAME `
-    -Password $autologinpassword
+    -Password (Read-Host -AsSecureString)
 # Disabling Server Manager opening on Startup
     Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask
 # Enabling Dark Mode [Server 2019 only]
@@ -313,10 +336,10 @@ if(!($osType.Caption -like "*Windows Server 2012 R2*")) {RestorePhotoViewer | Ou
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Value '{20D04FE0-3AEA-1069-A2D8-08002B30309D}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue | Out-Null}
     if((Test-RegistryValue -Path 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Value '{20D04FE0-3AEA-1069-A2D8-08002B30309D}') -eq $true) {Set-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 | Out-Null} Else {New-ItemProperty -LiteralPath 'registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' -Name '{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue | Out-Null}
 # Change Wallpaper  
-    (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AWSWallpaper", "$env:SystemRoot\Web\Wallpaper\AWSWallpaper.png")
-    Set-Wallpaper "$env:SystemRoot\Web\Wallpaper\AWSWallpaper.png"
+    (New-Object System.Net.WebClient).DownloadFile("https://imgur.com/download/GtQtKhz/AzureWallpaper", "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png")
+    Set-Wallpaper "$env:SystemRoot\Web\Wallpaper\AzureWallpaper.png"
 # Extract DirectX Archive to C:\Windows when OS is Server 2012 R2
-    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AWSTools\DirectXWK12.zip' -DestinationPath 'C:\Windows' -Force}
+    if ($osType.Caption -like "*Windows Server 2012 R2*") {Expand-Archive -Path 'C:\AzureTools\DirectXWK12.zip' -DestinationPath 'C:\Windows' -Force}
 }
 
 function Set-SecureAutoLogon {
@@ -658,7 +681,7 @@ ProgressWriter -Status "Disabling non-NVIDIA GPUs" -PercentComplete $PercentComp
 # Disabling non-NVIDIA GPUs
     if($osType.Caption -like "*Windows Server 2012 R2*") {
         # This command gets executed when OS is Windows Server 2012 R2
-        Start-Process -FilePath 'C:\AWSTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "VMBUS\{DA0A7802-E377-4AAC-8E77-0558EB1073F8}"' -Wait -NoNewWindow
     } else {
         # This command gets executed when OS is Windows Server 2016 or 2019
         Get-PnpDevice -Class "Display" -Status OK | Where-Object { $_.Name -notmatch "nvidia" } | Disable-PnpDevice -confirm:$false
@@ -668,16 +691,16 @@ ProgressWriter -Status "Disabling non-NVIDIA GPUs" -PercentComplete $PercentComp
 function DisableFloppyAndCDROM {
     ProgressWriter -Status "Disabling useless hardware" -PercentComplete $PercentComplete
     # Disabling Floppy Disk drive
-        Start-Process -FilePath 'C:\AWSTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "FDC\GENERIC_FLOPPY_DRIVE"' -Wait -NoNewWindow
     # Disabling CDROM drive
-        Start-Process -FilePath 'C:\AWSTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow
+        Start-Process -FilePath 'C:\AzureTools\devcon.exe' -ArgumentList 'disable "GenCdRom"' -Wait -NoNewWindow
 }
 
 Function ProgressWriter {
     param (
     [int]$percentcomplete,
     [string]$status
-    )Write-Progress -Activity "AWS VM will be prepared for Cloud Gaming" -Status $status -PercentComplete $PercentComplete}
+    )Write-Progress -Activity "Azure VM will be prepared for Cloud Gaming" -Status $status -PercentComplete $PercentComplete}
 
 function BlockHost {
     $BlockedHosts = @("telemetry.gfe.nvidia.com", "ls.dtrace.nvidia.com", "ota.nvidia.com", "ota-downloads.nvidia.com", "rds-assets.nvidia.com", "nvidia.tt.omtrdc.net", "api.commune.ly", "namso-gen.com", "nulled.to")
@@ -697,37 +720,61 @@ function BlockHost {
     }
 }
 
-function CheckForDrivers {
-    if (!($nvdrivers)) {
-    if (!(Get-WmiObject Win32_PnPSignedDriver| select DeviceName, DriverVersion, Manufacturer | where {$_.DeviceName -like "*NVIDIA*"})) {
-        $UseExternalScript = (Read-Host "No GPU driver detected.`nWould you like to use the Cloud GPU Updater script by jamesstringerparsec?`nThe driver the script will install may or may not be compatible with this patch.`nA shortcut will be created in the Desktop to continue this installation after finishing the script. (y/n)").ToLower() -eq "y"
-        InstallDrivers
-    }}
+function DownloadNVIDIAdrivers {
+    param (
+        $TryingAgain
+    )
+    if (!($TryingAgain)) {
+        ProgressWriter -Status "Downloading GPU drivers" -PercentComplete $PercentComplete
+        Write-Host -Object ('Downloading drivers for {0}' -f $OSType.Caption) -ForegroundColor Green    
+    }
+    # Downloading GPU drivers
+    if($osType.Caption -like "*Windows Server 2012 R2*") {
+        # This command gets executed when OS is Windows Server 2012
+        $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*server2012R2*"
+        $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
+        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_server2012R2_64bit_azure_swl.exe")
+    } else {
+        # This command gets executed when OS is Windows Server 2016 or 2019
+        $azuresupportpage = (Invoke-WebRequest -Uri https://docs.microsoft.com/en-us/azure/virtual-machines/windows/n-series-driver-setup -UseBasicParsing).links.outerhtml -like "*GRID*"
+        $GPUversion = $azuresupportpage.split('(')[1].split(')')[0]
+        (New-Object System.Net.WebClient).DownloadFile($($azuresupportpage[0].split('"')[1]), 'C:\AzureTools\drivers\NVIDIA' + "\" + $($GPUversion) + "_grid_win10_server2016_server2019_64bit_azure_swl.exe")
+    }
 }
 
 function InstallDrivers {
-$Shell = New-Object -comObject WScript.Shell
-$Shortcut = $Shell.CreateShortcut("$userpath\Desktop\AutomateCloudGaming_Continue.lnk")
-$Shortcut.TargetPath = "powershell.exe"
-$Shortcut.Arguments = "-Command `"Set-ExecutionPolicy Unrestricted; & '$PSScriptRoot\PostNV6.ps1'`" -drivers"
-$Shortcut.Save()
-Download-File "https://github.com/jamesstringerparsec/Cloud-GPU-Updater/archive/master.zip" "$WorkDir\updater.zip" "Cloud GPU Updater"          
-if(![System.IO.File]::Exists("$WorkDir\Updater")) {
-Expand-Archive -Path "$WorkDir\updater.zip" -DestinationPath "$WorkDir\Updater"
-Start-Process -FilePath "powershell.exe" -ArgumentList "-Command `"$WorkDir\Updater\Cloud-GPU-Updater-master\GPUUpdaterTool.ps1`""
-Environment]::Exit(0)
-}}
+    # Installing GPU drivers
+    $DRIVERPATH = (Get-ChildItem -Path 'C:\AzureTools\drivers\NVIDIA' -Filter *azure*.exe).FullName
+    IF (!($DRIVERPATH)) {
+        Write-Warning -Message 'Driver download failed, trying it again...'
+        DownloadNVIDIAdrivers -TryingAgain
+    }
+    ProgressWriter -Status "Installing GPU drivers" -PercentComplete $PercentComplete
+    Write-Host -Object 'Installing most recent NVIDIA drivers...' -NoNewline
+    Start-Process -FilePath $DRIVERPATH -ArgumentList "/s","/clean","/noreboot" -NoNewWindow -Wait
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & '$PSScriptRoot\PostNV6.ps1'`" -MoonlightAfterReboot";
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
+    $trigger = New-ScheduledTaskTrigger -AtLogon -RandomDelay "00:00:30"
+    $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
+    Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -TaskName "ContinueAzureGamingScript" -Description "Continue Azure Gaming script after Windows reboot" | Out-Null
+    Write-Host -Object 'Restarting Windows...'
+    Restart-Computer -Force
+    Start-Sleep -Seconds 3
+    Write-Warning 'Restarting did not work, please restart Windows manually'
+    PAUSE
+    [Environment]::Exit(2)
+}
 
 function GameStreamAfterReboot {
-    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAWSGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAWSGamingScript" -Confirm:$false}
+    if(Get-ScheduledTask | Where-Object {$_.TaskName -like "ContinueAzureGamingScript" }) {Unregister-ScheduledTask -TaskName "ContinueAzureGamingScript" -Confirm:$false}
     ProgressWriter -Status "Patching GameStream to work with unsupported NVIDIA GPU" -PercentComplete $PercentComplete
     Write-Output -InputObject 'Downloading GameStream Patcher [CREDIT: acceleration3]'
-    (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AWSTools\GameStream\Patcher.ps1")
+    (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/acceleration3/cloudgamestream/master/Steps/Patcher.ps1", "C:\AzureTools\GameStream\Patcher.ps1")
     # Allowing GameStream Rules via Windows Firewall [for Moonlight]
     New-NetFirewallRule -DisplayName "NVIDIA GameStream TCP" -Direction Inbound -LocalPort 47984,47989,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol TCP -Action Allow | Out-Null
     New-NetFirewallRule -DisplayName "NVIDIA GameStream UDP" -Direction Inbound -LocalPort 47998,47999,48000,48010 -Program 'C:\Program Files\NVIDIA Corporation\NvStreamSrv\nvstreamer.exe' -Protocol UDP -Action Allow | Out-Null
     Write-Host "Enabling NVIDIA FrameBufferCopy..."
-    Start-Process -FilePath "C:\AWSTools\NvFBCEnable.exe" -ArgumentList "-enable" -NoNewWindow -Wait | Out-Null
+    Start-Process -FilePath "C:\AzureTools\NvFBCEnable.exe" -ArgumentList "-enable" -NoNewWindow -Wait | Out-Null
     Write-Host "Patching GFE to allow the GPU's Device ID..."
     Stop-Service -Name NvContainerLocalSystem | Out-Null
     $TargetDevice = (Get-WmiObject Win32_VideoController | Select-Object PNPDeviceID,Name | Where-Object Name -match "nvidia" | Select-Object -First 1) 
@@ -737,12 +784,12 @@ function GameStreamAfterReboot {
     if(!($TargetDevice.PNPDeviceID -match "DEV_(\w*)")) {
     throw "Regex failed to extract device ID."
     }
-    & 'C:\AWSTools\GameStream\Patcher.ps1' -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll" | Out-Null;
+    & 'C:\AzureTools\GameStream\Patcher.ps1' -DeviceID $matches[1] -TargetFile "C:\Program Files\NVIDIA Corporation\NvContainer\plugins\LocalSystem\GameStream\Main\_NvStreamControl.dll" | Out-Null;
 }
 
 function StartupScript {
     # Adding Task to start PowerShell script everytime at logon
-    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AWSTools\startup.ps1'`"";
+    $script = "-Command `"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force; & 'C:\AzureTools\startup.ps1'`"";
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $script
     $trigger = New-ScheduledTaskTrigger -AtLogon
     $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
@@ -850,9 +897,9 @@ function InstallGFE {
         Set-Variable -Name 'CountryCode' -Value 'IN'
     } else {Set-Variable -Name 'CountryCode' -Value 'US'}
     Write-Host -Object ('Downloading GFE with {0} Mirror' -f $CountryCode)
-    (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AWSTools\GeForceExperienceSetup.exe")
+    (New-Object System.Net.WebClient).DownloadFile("https://$($CountryCode).download.nvidia.com/GFE/GFEClient/3.13.0.85/GeForce_Experience_Beta_v3.13.0.85.exe", "C:\AzureTools\GeForceExperienceSetup.exe")
     Write-Host -Object 'Installing GeForce Experience...' -NoNewline
-    $GFEExitCode = (Start-Process -FilePath "C:\AWSTools\GeForceExperienceSetup.exe" -ArgumentList "-s" -NoNewWindow -Wait -Passthru -WorkingDirectory 'C:\AWSTools').ExitCode
+    $GFEExitCode = (Start-Process -FilePath "C:\AzureTools\GeForceExperienceSetup.exe" -ArgumentList "-s" -NoNewWindow -Wait -Passthru -WorkingDirectory 'C:\AzureTools').ExitCode
     if($GFEExitCode -eq 0) {Write-Host "INSTALLED" -ForegroundColor Green}
     else { 
         Write-Host "FAILED" -ForegroundColor Red
@@ -887,37 +934,35 @@ Add-Type -TypeDefinition $setwallpapersrc
 Function XboxController {
     ProgressWriter -Status "Downloading Xbox 360 controller drivers" -PercentComplete $PercentComplete
     # Downloading basic Xbox 360 controller driver
-    (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AWSTools\drivers\Xbox360_64Eng.cab")
-    if((Test-Path -Path C:\AWSTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AWSTools\drivers\Xbox360_64Eng -ItemType directory}
-    cmd.exe /c "C:\Windows\System32\expand.exe C:\AWSTools\drivers\Xbox360_64Eng.cab -F:* C:\AWSTools\drivers\Xbox360_64Eng" | Out-Null
-    cmd.exe /c '"C:\AWSTools\devcon.exe" dp_add "C:\AWSTools\drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
+    (New-Object System.Net.WebClient).DownloadFile("http://www.download.windowsupdate.com/msdownload/update/v3-19990518/cabpool/2060_8edb3031ef495d4e4247e51dcb11bef24d2c4da7.cab", "C:\AzureTools\drivers\Xbox360_64Eng.cab")
+    if((Test-Path -Path C:\AzureTools\drivers\Xbox360_64Eng) -eq $true) {} Else {New-Item -Path C:\AzureTools\drivers\Xbox360_64Eng -ItemType directory}
+    cmd.exe /c "C:\Windows\System32\expand.exe C:\AzureTools\drivers\Xbox360_64Eng.cab -F:* C:\AzureTools\drivers\Xbox360_64Eng" | Out-Null
+    cmd.exe /c '"C:\AzureTools\devcon.exe" dp_add "C:\AzureTools\drivers\Xbox360_64Eng\xusb21.inf"' | Out-Null
     # Downloading ViGEmBus Controller Driver
     if($osType.Caption -like "*Windows Server 2012*") {
         # This command gets executed if OS is Windows Server 2012
-        (New-Object System.Net.WebClient).DownloadFile("https://github.com/ViGEm/ViGEmBus/releases/download/setup-v1.16.116/ViGEmBus_Setup_1.16.116.exe", "C:\AWSTools\ViGEmBus_Setup_win2012.exe")
-        Start-Process "C:\AWSTools\ViGEmBus_Setup_win2012.exe" -ArgumentList '/qn' -Wait -NoNewWindow | Out-Null
+        (New-Object System.Net.WebClient).DownloadFile("https://github.com/ViGEm/ViGEmBus/releases/download/setup-v1.16.116/ViGEmBus_Setup_1.16.116.exe", "C:\AzureTools\ViGEmBus_Setup_win2012.exe")
+        Start-Process "C:\AzureTools\ViGEmBus_Setup_win2012.exe" -ArgumentList '/qn' -Wait -NoNewWindow | Out-Null
     } else {
         # This command gets executed if OS is Windows Server 2016 or 2019
         $vigembus = (Invoke-WebRequest -Uri https://github.com/ViGEm/ViGEmBus/releases -UseBasicParsing).links.outerhtml -like "*ViGEmBusSetup_x64.msi*"
-        (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AWSTools\ViGEmBusSetup_x64.msi')
-        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AWSTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow | Out-Null
+        (New-Object System.Net.WebClient).DownloadFile('https://github.com/' + $($vigembus[0].split('"')[1]), 'C:\AzureTools\ViGEmBusSetup_x64.msi')
+        Start-Process 'C:\Windows\System32\msiexec.exe' -ArgumentList '/i "C:\AzureTools\ViGEmBusSetup_x64.msi" /qn /norestart' -Wait -NoNewWindow | Out-Null
     }
 }
 
 # Set $osType for checking for OS
 $osType = Get-CimInstance -ClassName Win32_OperatingSystem
-# Changing Title to "First-time setup for Gaming on AWS"
-$host.ui.RawUI.WindowTitle = "Automate AWS CloudGaming Tasks [Version 1.0.0]"
+# Changing Title to "First-time setup for Gaming on Microsoft Azure"
+$host.ui.RawUI.WindowTitle = "Automate Azure CloudGaming Tasks [Version 1.0.0]"
 # Changing SecurityProtocol for prevent SSL issues with websites
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls" 
 # Set WScriptShell to create Desktop shortcuts
 $WScriptShell = New-Object -ComObject WScript.Shell
-# Asking for username password for configure autologin
-Write-Host -Object ('Enter your password for {0} to enable Autologon:' -f $env:USERNAME)
-$autologinpassword = (Read-Host -AsSecureString)
+
 Clear-Host
 Write-Host -ForegroundColor DarkRed -BackgroundColor Black '
-AWS Automation Gaming Script [Version 1.0.0]
+Azure Automation Gaming Script [Version 1.0.0]
 (c) 2021 SoftwareRat. All rights reserved.'
 
 if($MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -ForegroundColor Yellow}
@@ -925,7 +970,7 @@ if($MoonlightAfterReboot) {Write-Host -Object 'Continue script after reboot' -Fo
 if(!$MoonlightAfterReboot) {
     $ScripttaskList = (
     "CheckForRDP",
-    "TestForAWS",
+    "TestForAzure",
     "CheckOSsupport",
     "SetWindowsSettings",
     "EnableAudio",
@@ -937,12 +982,13 @@ if(!$MoonlightAfterReboot) {
     "InstallCommonSoftware",
     "DisableFloppyAndCDROM",
     "DownloadNVIDIAdrivers",
+    "GPUDriverUpdate",
     "InstallDrivers"
 )
 } else {
     $ScripttaskListAfterReboot = (
     "CheckForRDP",
-    "TestForAWS",
+    "TestForAzure",
     "CheckOSsupport",
     "InstallGFE",
     "BlockHost",
