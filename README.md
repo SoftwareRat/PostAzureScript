@@ -31,8 +31,8 @@
 - NV6_Promo
 
 ### TO-DO LIST: 
-- Porting this script to Amazon Web Services or Google Cloud
-- Supporting other then Cloud SKU's based on NV6
+- Porting this script to ~~Amazon Web Services~~ [I did already for AWS](https://github.com/SoftwareRat/PostAWSScript) or Google Cloud
+~~- Supporting other then Cloud SKU's based on NV6~~
 - This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
 - Supporting Parsec
 
