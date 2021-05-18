@@ -6,7 +6,7 @@
   </a>
 </p>
 
-> Automate to configure Azure NV6 instances for CloudGaming
+> Automate Azure instances with NVIDIA GRID-capable GPU's for Cloud Gaming
 
 ## Author
 
