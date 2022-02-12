@@ -8,9 +8,6 @@
 
 > Automate Azure instances with NVIDIA GRID-capable GPU's for Cloud Gaming
 
-# UPDATE [11/06/2021]
-## This script has been discontinued because there will be an better script. Thank you for all the support :)
-
 ## Author
 
 👤 **SoftwareRat**
@@ -34,10 +31,8 @@
 - NV6_Promo
 
 ### TO-DO LIST: 
-- Porting this script to ~~Amazon Web Services~~ [(I did already for AWS)](https://github.com/SoftwareRat/PostAWSScript) ~~or~~ Google Cloud
-- ~~Supporting other then Cloud SKU's based on NV6~~
 - This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
-- Supporting Parsec
+- ~~Supporting Parsec~~ (Parsec has own script, and the script is for GameStream users designed)
 
 ## Show your support
 ***
