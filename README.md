@@ -1,8 +1,6 @@
 <h1 align="center">PostAzureScript - Use Azure for CloudGaming 🎮</h1>
 <p>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0-blue.svg?cacheSeconds=2592000" />
-  <a href="https://twitter.com/realsoftwarerat" target="_blank">
-    <img alt="Twitter: realsoftwarerat" src="https://img.shields.io/twitter/follow/realsoftwarerat.svg?style=social" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0-blue.svg?cacheSeconds=2592000"/>
   </a>
 </p>
 
@@ -30,7 +28,7 @@
 
 ### TO-DO LIST: 
 - This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
-- ~~Supporting Parsec~~ (Parsec has own script, and the script is for GameStream users designed)
+- ~~Supporting Parsec~~ (Parsec has own script, and the script is designed for GameStream users)
 
 ## Show your support
 ***
