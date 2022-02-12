@@ -12,8 +12,6 @@
 
 👤 **SoftwareRat**
 
-* Website: https://softwarerat.vision
-* Twitter: [@realsoftwarerat](https://twitter.com/realsoftwarerat)
 * Github: [@SoftwareRat](https://github.com/SoftwareRat)
 
 # Execution
