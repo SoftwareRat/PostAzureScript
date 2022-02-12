@@ -26,10 +26,6 @@
 - NV6_Standard
 - NV6_Promo
 
-### TO-DO LIST: 
-- This Script is currently supporting OS for servers only. Support adding for Windows 10 soon 
-- ~~Supporting Parsec~~ (Parsec has own script, and the script is designed for GameStream users)
-
 ## Show your support
 ***
 Give a ⭐️ if this project helped you!
